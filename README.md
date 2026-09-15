@@ -9,23 +9,19 @@
 erDiagram
     CATEGORY ||--o{ CATEGORY : "parent of"
     CATEGORY ||--o{ PRODUCT : classifies
-    USER ||--o{ STORE : owns
     STORE ||--o{ PRODUCT : offers
+    USER ||--o{ STORE : owns
     USER ||--o{ ORDER : places
     ORDER ||--|{ ORDER_ITEM : contains
     PRODUCT ||--o{ ORDER_ITEM : "included in"
     PRODUCT ||--o{ REVIEW : receives
-    USER ||--o{ REVIEW : writes
 
-    USER {
+    CATEGORY {
         uuid id PK
-        string email
-        string password_hash
-        string first_name
-        string last_name
-        string phone
-        string role
-        datetime created_at
+        uuid parent_id FK
+        string name
+        string slug
+        string description
     }
 
     STORE {
@@ -36,12 +32,15 @@ erDiagram
         datetime created_at
     }
 
-    CATEGORY {
+    USER {
         uuid id PK
-        uuid parent_id FK
-        string name
-        string slug
-        string description
+        string email
+        string password_hash
+        string first_name
+        string last_name
+        string phone
+        string role
+        datetime created_at
     }
 
     PRODUCT {
