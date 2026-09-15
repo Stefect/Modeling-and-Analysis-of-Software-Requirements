@@ -7,17 +7,20 @@
 
 ```mermaid
 erDiagram
+    direction TB
+
+    USER ||--o{ STORE : owns
+    USER ||--o{ ORDER : places
+    USER ||--o{ REVIEW : writes
+
+    STORE ||--o{ PRODUCT : offers
+
     CATEGORY ||--o{ CATEGORY : "parent of"
     CATEGORY ||--o{ PRODUCT : classifies
-    STORE ||--o{ PRODUCT : offers
-    USER ||--o{ STORE : owns
-    
-    USER ||--o{ ORDER : places
+
     ORDER ||--|{ ORDER_ITEM : contains
     PRODUCT ||--o{ ORDER_ITEM : "included in"
-
     PRODUCT ||--o{ REVIEW : receives
-    USER ||--o{ REVIEW : writes
 
     USER {
         uuid id PK
@@ -85,8 +88,3 @@ erDiagram
         datetime created_at
     }
 ```
-
-## Відповідність критеріям
-- **Нормалізація 3NF:** Видалено динамічно обчислювані поля (`subtotal` та `rating`).
-- **Історія цін:** Ціна за одиницю товару на момент купівлі зберігається в `ORDER_ITEM.unit_price`.
-- **Іменування:** Усі сутності наведені до однини.
