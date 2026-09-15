@@ -1,91 +1,92 @@
 # Концептуальна модель даних маркетплейсу
 
-## Домен
-Система маркетплейсу для взаємодії покупців, продавців та оформлення замовлень товарів.
+## Опис системи
+Система для організації мультивендорного маркетплейсу, що забезпечує взаємодію покупців, магазинів продавців, каталог товарів з ієрархічними категоріями, оформлення замовлень та систему відгуків.
 
-## Початкова ER-діаграма (Draft v1)
+## ER-діаграма (v2 - Нормалізована модель 3NF)
 
 ```mermaid
 erDiagram
-    USERS ||--o{ STORES : "owns"
-    USERS ||--o{ ORDERS : "places"
-    USERS ||--o{ REVIEWS : "writes"
+    CATEGORY ||--o{ CATEGORY : "parent of"
+    CATEGORY ||--o{ PRODUCT : classifies
+    STORE ||--o{ PRODUCT : offers
+    USER ||--o{ STORE : owns
+    
+    USER ||--o{ ORDER : places
+    ORDER ||--|{ ORDER_ITEM : contains
+    PRODUCT ||--o{ ORDER_ITEM : "included in"
 
-    STORES ||--o{ PRODUCTS : "offers"
+    PRODUCT ||--o{ REVIEW : receives
+    USER ||--o{ REVIEW : writes
 
-    CATEGORIES ||--o{ CATEGORIES : "parent of"
-    CATEGORIES ||--o{ PRODUCTS : "classifies"
-
-    PRODUCTS ||--o{ ORDER_ITEMS : "included in"
-    PRODUCTS ||--o{ REVIEWS : "receives"
-
-    ORDERS ||--|{ ORDER_ITEMS : "contains"
-
-    USERS {
+    USER {
         uuid id PK
-        string email UK
+        string email
         string password_hash
         string first_name
         string last_name
         string phone
         string role
-        timestamp created_at
+        datetime created_at
     }
 
-    STORES {
+    STORE {
         uuid id PK
         uuid owner_id FK
         string name
         string description
-        string rating
-        timestamp created_at
+        datetime created_at
     }
 
-    CATEGORIES {
+    CATEGORY {
         uuid id PK
         uuid parent_id FK
         string name
-        string slug UK
-        text description
+        string slug
+        string description
     }
 
-    PRODUCTS {
+    PRODUCT {
         uuid id PK
         uuid store_id FK
         uuid category_id FK
         string title
-        text description
+        string description
         decimal price
         int stock_quantity
         string status
-        timestamp created_at
+        datetime created_at
     }
 
-    ORDERS {
+    ORDER {
         uuid id PK
         uuid customer_id FK
         string status
         decimal total_amount
         string shipping_address
         string payment_status
-        timestamp created_at
+        datetime created_at
     }
 
-    ORDER_ITEMS {
+    ORDER_ITEM {
         uuid id PK
         uuid order_id FK
         uuid product_id FK
         int quantity
         decimal unit_price
-        decimal subtotal
     }
 
-    REVIEWS {
+    REVIEW {
         uuid id PK
         uuid user_id FK
         uuid product_id FK
         int rating
-        text comment
-        timestamp created_at
+        string comment
+        datetime created_at
     }
 ```
+
+## Відповідність критеріям
+- **Нормалізація 3NF:** Видалено динамічно обчислювані поля (`subtotal` та `rating`).
+- **Історія цін:** Ціна за одиницю товару на момент купівлі зберігається в `ORDER_ITEM.unit_price`.
+- **Іменування:** Усі сутності наведені до однини.
