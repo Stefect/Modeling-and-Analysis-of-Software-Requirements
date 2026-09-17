@@ -12,6 +12,7 @@ erDiagram
     STORE ||--o{ PRODUCT : offers
     USER ||--o{ STORE : owns
     USER ||--o{ ORDER : places
+    USER ||--o{ REVIEW : writes
     ORDER ||--|{ ORDER_ITEM : contains
     PRODUCT ||--o{ ORDER_ITEM : "included in"
     PRODUCT ||--o{ REVIEW : receives
