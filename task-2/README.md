@@ -167,11 +167,11 @@ Feature: Керування товарами продавця (EARS-08, EARS-09,
 | :--- | :--- | :--- | :--- | :--- |
 | **UC_Auth** | Авторизуватися в системі | `User` | Primary | Базова автентифікація користувача. |
 | **UC_Search** | Шукати товари | `Customer` | Primary | Пошук товарів у каталозі `PRODUCT`. |
-| **UC_SearchCat** | Фільтрувати за `CATEGORY` | `Customer` | Generalization | Розширення пошуку через фільтри категорій. |
+| **UC_SearchCat** | Фільтрувати за `CATEGORY` | `Customer` | `<<extend>>` | **Опціональний:** фільтр категорій розширює `UC_Search`. |
 | **UC_CreateOrder**| Оформити замовлення `ORDER` | `Customer` | Primary | Створення замовлення зі статусом `Pending`. |
 | **UC_Snapshot** | Зафіксувати ціну `unit_price`| System | `<<include>>` | **Обов'язковий:** фіксація ціни в `ORDER_ITEM`. |
 | **UC_Pay** | Оплатити через шлюз | `Payment Gateway`| `<<extend>>` | **Опціональний:** онлайн-оплата після створення. |
-| **UC_Review** | Залишити відгук `REVIEW` | `Customer` | Primary | Оцінка придбаного товару. |
+| **UC_Review** | Залишити відгук `REVIEW` | `Customer` | Primary | Оцінка та коментар до товару (EARS-06). |
 | **UC_ManageStore**| Керувати магазином `STORE` | `Seller` | Primary | Налаштування профілю магазину продавця. |
 | **UC_ManageProduct**| Управляти товарами `PRODUCT`| `Seller` | Primary | Додавання та редагування товарів. |
 
@@ -196,6 +196,7 @@ flowchart TD
         
         UC_Auth("UC_Auth: Авторизація")
         UC_Search("UC_Search: Пошук товарів")
+        UC_SearchCat("UC_SearchCat: Фільтр CATEGORY")
         UC_CreateOrder("UC_CreateOrder: Оформлення ORDER")
         UC_Snapshot("UC_Snapshot: Фіксація unit_price")
         UC_Pay("UC_Pay: Оплата")
@@ -205,7 +206,8 @@ flowchart TD
 
         %% Примусовий вертикальний порядок
         UC_Auth ~~~ UC_Search
-        UC_Search ~~~ UC_CreateOrder
+        UC_Search ~~~ UC_SearchCat
+        UC_SearchCat ~~~ UC_CreateOrder
         UC_CreateOrder ~~~ UC_Snapshot
         UC_Snapshot ~~~ UC_Pay
         UC_Pay ~~~ UC_Review
@@ -215,11 +217,13 @@ flowchart TD
         %% Логічні залежності
         UC_CreateOrder -. include .-> UC_Snapshot
         UC_Pay -. extend .-> UC_CreateOrder
+        UC_SearchCat -. extend .-> UC_Search
     end
 
     %% --- Зв'язки Акторів ---
     User --> UC_Auth
     Customer --> UC_Search
+    Customer --> UC_SearchCat
     Customer --> UC_CreateOrder
     Customer --> UC_Review
 
