@@ -9,11 +9,11 @@
 
 1. **Оплата як обов'язковий include.** AI зробив оплату частиною створення замовлення. Виправлено: оплата — `<<extend>>`, фіксація ціни — `<<include>>` (ітерація 2).
    - Коміт: [2a9dc326](https://github.com/Stefect/Modeling-and-Analysis-of-Software-Requirements/commit/2a9dc326f89c664d97e10b3d11e990f5a2517f94)
-   - Промпт: `ai/task-2-prompt-history.md`, ітерація 2. Spec: `task-2/spec.md`, розд. 3.
+   - Промпт: `ai/task-2-prompt-history.md`, ітерація 2. Spec: `task-2/spec.md`, розд. 3–4.
 
 2. **Відсутність генералізації акторів.** `Customer` і `Seller` були незалежними. Виправлено: абстрактний актор `User` (ітерація 2).
    - Коміт: [2a9dc326](https://github.com/Stefect/Modeling-and-Analysis-of-Software-Requirements/commit/2a9dc326f89c664d97e10b3d11e990f5a2517f94)
-   - Промпт: `ai/task-2-prompt-history.md`, ітерація 2. Spec: `task-2/spec.md`, розд. 3.
+   - Промпт: `ai/task-2-prompt-history.md`, ітерація 2. Spec: `task-2/spec.md`, розд. 3–4.
 
 3. **Вимоги без сутностей БД.** EARS описували поведінку без атрибутів ERD. Виправлено: у вимогах явно вказано сутності та атрибути (ітерація 5).
    - Коміт: [0855572](https://github.com/Stefect/Modeling-and-Analysis-of-Software-Requirements/commit/08555728487477056a7dd2b247e903c427577683)
