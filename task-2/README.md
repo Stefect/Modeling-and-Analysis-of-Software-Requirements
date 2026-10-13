@@ -19,6 +19,7 @@
 - **EARS-04 (Optional):** WHERE покупець обирає онлайн-оплату, система SHALL ініціювати транзакцію через `Payment Gateway`.
 - **EARS-05 (Unwanted Behavior):** IF `Payment Gateway` повертає статус відмови транзакції, THEN система SHALL скасовувати резерв товарів та залишати `ORDER` у статусі `Unpaid`.
 - **EARS-06 (Event-driven):** WHEN покупець `Customer` залишає відгук `REVIEW`, система SHALL зберігати оцінку та коментар з прив'язкою до `PRODUCT`.
+- **EARS-07 (Optional, Out of Scope):** WHERE товар доставляється за межі внутрішнього ринку, система SHALL розраховувати міжнародну митну вартість і збори. *Статус: Out of Scope, див. `trace-matrix.md`, розділ 3.*
 
 ---
 
@@ -32,7 +33,7 @@
 
 | Крок | Ключове слово | Сценарій / Дія | Сутності & Атрибути |
 | :--- | :--- | :--- | :--- |
-| **Precondition** | **Given** | Покупець `Customer` авторизований у системі | `USER` (`user_id`) |
+| **Precondition** | **Given** | Покупець `Customer` авторизований у системі | `USER` (`id`) |
 | **Context** | **And** | У кошику є товар `PRODUCT` із ціною 500 UAH | `PRODUCT` (`price` = 500) |
 | **Action** | **When** | Покупець натискає кнопку "Оформити замовлення" | `UC_CreateOrder` |
 | **Outcome 1** | **Then** | Система створює новий запис `ORDER` зі статусом `Pending` | `ORDER` (`status` = 'Pending') |

@@ -75,13 +75,13 @@
 
 | Сутність | Атрибути | Використання в Завданні 2 | EARS / Use Case | Статус |
 | :--- | :--- | :--- | :--- | :--- |
-| USER | user_id, username, email, password, role | Автентифікація та профіль (Customer, Seller) | UC_Auth, EARS-02, -06 | Повне |
-| STORE | store_id, user_id (FK), store_name, description, rating | Керування магазином | UC_ManageStore | Повне |
-| PRODUCT | product_id, store_id, category_id, name, price, stock_quantity, description | Пошук, фільтрація, резервування, фіксація ціни | UC_Search, UC_SearchCat, UC_CreateOrder, UC_Snapshot, EARS-01, -02, -03 | Повне |
-| CATEGORY | category_id, parent_category_id (self-ref), category_name | Ієрархічна фільтрація | UC_SearchCat, EARS-01 | Повне |
-| ORDER | order_id, user_id (FK), status, created_at, total_price | Створення, управління статусом, резервування залишків | UC_CreateOrder, UC_Pay, EARS-02, -03, -04, -05 | Повне |
-| ORDER_ITEM | order_item_id, order_id (FK), product_id (FK), quantity, unit_price | Фіксація ціни (Price Snapshot) | UC_Snapshot (include), EARS-02 | Повне |
-| REVIEW | review_id, user_id (FK), product_id (FK), rating, comment, created_at | Оцінки та коментарі до товарів | UC_Review, EARS-06 | Повне |
+| USER | id (PK), email, password_hash, first_name, last_name, phone, role, created_at | Автентифікація та профіль (Customer, Seller) | UC_Auth, EARS-02, -06 | Повне |
+| STORE | id (PK), owner_id (FK → USER), name, description, created_at | Керування магазином | UC_ManageStore | Повне |
+| PRODUCT | id (PK), store_id (FK), category_id (FK), title, description, price, stock_quantity, status, created_at | Пошук, фільтрація, резервування, фіксація ціни | UC_Search, UC_SearchCat, UC_CreateOrder, UC_Snapshot, EARS-01, -02, -03 | Повне |
+| CATEGORY | id (PK), parent_id (FK → CATEGORY, optional), name, slug, description | Ієрархічна фільтрація | UC_SearchCat, EARS-01 | Повне |
+| ORDER | id (PK), customer_id (FK → USER), status, total_amount, shipping_address, payment_status, created_at | Створення, управління статусом, резервування залишків | UC_CreateOrder, UC_Pay, EARS-02, -03, -04, -05 | Повне |
+| ORDER_ITEM | id (PK), order_id (FK), product_id (FK), quantity, unit_price | Фіксація ціни (Price Snapshot) | UC_Snapshot (include), EARS-02 | Повне |
+| REVIEW | id (PK), user_id (FK → USER), product_id (FK → PRODUCT), rating, comment, created_at | Оцінки та коментарі до товарів | UC_Review, EARS-06 | Повне |
 
 Ключові моменти:
 
@@ -89,7 +89,9 @@ Price Snapshot (ORDER_ITEM.unit_price) є явним include в UC_CreateOrder -
 
 Резервування (PRODUCT.stock_quantity) блокує залишки в стані Pending (EARS-03), скасовує при відмові платежу (EARS-05).
 
-Ієрархія категорій (CATEGORY.parent_category_id) дозволяє багаторівневі фільтри в UC_SearchCat.
+Обчислювані поля (рейтинг магазину, сума рядка замовлення) не зберігаються в таблицях, згідно з 3NF із `spec.md`; рейтинг розраховується з `REVIEW.rating` у запитах.
+
+Ієрархія категорій (CATEGORY.parent_id) дозволяє багаторівневі фільтри в UC_SearchCat.
 
 Out of Scope (EARS-07) - міжнародна логістика та митні збори винесені за межі системи.
 
