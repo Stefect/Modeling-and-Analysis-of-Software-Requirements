@@ -13,12 +13,12 @@
 
 ## 2. Функціональні вимоги у форматі EARS
 
-- **EARS-01 (Ubiquitous):** Система SHALL надавати можливість пошуку та фільтрації товарів `PRODUCT` за ієрархічними категоріями `CATEGORY`.
+- **EARS-01 (Ubiquitous):** Система SHALL повертати товари `PRODUCT`, що відповідають пошуковому запиту; для вибраної `CATEGORY` — товари цієї категорії та її підкатегорій.
 - **EARS-02 (Event-driven):** WHEN покупець `Customer` підтверджує замовлення, система SHALL створювати запис `ORDER` та фіксувати знімок ціни `unit_price` у сутності `ORDER_ITEM`.
-- **EARS-03 (State-driven):** WHILE замовлення перебуває у статусі `Pending`, система SHALL блокувати відповідну кількість товарних залишків `stock_quantity`.
+- **EARS-03 (State-driven):** WHILE замовлення перебуває у статусі `Pending`, система SHALL резервувати `ORDER_ITEM.quantity` одиниць товару, зменшуючи `PRODUCT.stock_quantity` на цю кількість.
 - **EARS-04 (Optional):** WHERE покупець обирає онлайн-оплату, система SHALL ініціювати транзакцію через `Payment Gateway`.
-- **EARS-05 (Unwanted Behavior):** IF `Payment Gateway` повертає статус відмови транзакції, THEN система SHALL скасовувати резерв товарів та залишати `ORDER` у статусі `Unpaid`.
-- **EARS-06 (Event-driven):** WHEN покупець `Customer` залишає відгук `REVIEW`, система SHALL зберігати оцінку та коментар з прив'язкою до `PRODUCT`.
+- **EARS-05 (Unwanted Behavior):** IF `Payment Gateway` повертає статус відмови транзакції, THEN система SHALL повертати `ORDER_ITEM.quantity` до `PRODUCT.stock_quantity` (скасування резерву) та залишати `ORDER` у статусі `Unpaid`.
+- **EARS-06 (Event-driven):** WHEN покупець `Customer` залишає відгук `REVIEW`, система SHALL зберігати оцінку `rating` (ціле число від 1 до 5) та коментар `comment` з прив'язкою до `PRODUCT` і `USER`.
 - **EARS-08 (Event-driven):** WHEN продавець `Seller` створює або редагує `STORE`, система SHALL зберігати `name` і `description` з прив'язкою `owner_id` до `USER`.
 - **EARS-09 (Event-driven):** WHEN продавець `Seller` додає або змінює `PRODUCT`, система SHALL зберігати `title`, `price`, `stock_quantity` з прив'язкою `store_id` до `STORE`, що належить продавцю.
 - **EARS-10 (Unwanted Behavior):** IF продавець намагається змінити `STORE` або `PRODUCT`, який йому не належить (`STORE.owner_id` ≠ `USER.id`), THEN система SHALL відхиляти зміну.
