@@ -10,6 +10,9 @@
 | **EARS-04** | Optional | Ініціалізація онлайн-оплати через шлюз | `UC_Pay`, `UC_CreateOrder` | `ORDER` | Повне |
 | **EARS-05** | Unwanted Behavior | Скасування резерву при відмові платежу | `UC_Pay`, `UC_CreateOrder` | `ORDER`, `PRODUCT` | Повне |
 | **EARS-06** | Event-driven | Збереження відгуку та оцінки товару | `UC_Review` | `REVIEW`, `PRODUCT`, `USER` | Повне |
+| **EARS-08** | Event-driven | Створення та редагування магазину з прив'язкою до власника | `UC_ManageStore` | `STORE`, `USER` | Повне |
+| **EARS-09** | Event-driven | Додавання та зміна товарів у власному магазині | `UC_ManageProduct` | `PRODUCT`, `STORE` | Повне |
+| **EARS-10** | Unwanted Behavior | Відхилення змін магазину або товару чужим продавцем | `UC_ManageStore`, `UC_ManageProduct` | `STORE`, `PRODUCT` | Повне |
 | **EARS-07** | Optional | Розрахунок міжнародної митної вартості та зборів (WHERE доставка за межі ринку) | *Відсутній* | *Відсутні* | **Out of Scope** |
 
 > **Примітка щодо $N:M$ трасування:** 

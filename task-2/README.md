@@ -19,6 +19,9 @@
 - **EARS-04 (Optional):** WHERE покупець обирає онлайн-оплату, система SHALL ініціювати транзакцію через `Payment Gateway`.
 - **EARS-05 (Unwanted Behavior):** IF `Payment Gateway` повертає статус відмови транзакції, THEN система SHALL скасовувати резерв товарів та залишати `ORDER` у статусі `Unpaid`.
 - **EARS-06 (Event-driven):** WHEN покупець `Customer` залишає відгук `REVIEW`, система SHALL зберігати оцінку та коментар з прив'язкою до `PRODUCT`.
+- **EARS-08 (Event-driven):** WHEN продавець `Seller` створює або редагує `STORE`, система SHALL зберігати `name` і `description` з прив'язкою `owner_id` до `USER`.
+- **EARS-09 (Event-driven):** WHEN продавець `Seller` додає або змінює `PRODUCT`, система SHALL зберігати `title`, `price`, `stock_quantity` з прив'язкою `store_id` до `STORE`, що належить продавцю.
+- **EARS-10 (Unwanted Behavior):** IF продавець намагається змінити `STORE` або `PRODUCT`, який йому не належить (`STORE.owner_id` ≠ `USER.id`), THEN система SHALL відхиляти зміну.
 - **EARS-07 (Optional, Out of Scope):** WHERE товар доставляється за межі внутрішнього ринку, система SHALL розраховувати міжнародну митну вартість і збори. *Статус: Out of Scope, див. `trace-matrix.md`, розділ 3.*
 
 ---
@@ -127,6 +130,32 @@ Feature: Пошук і фільтрація за категоріями (EARS-01
     When покупець виконує пошук за назвою (UC_Search)
     Then результат містить товари, що відповідають запиту
 ```
+
+---
+
+### US-05: Керування магазином і товарами продавця (EARS-08..10)
+
+**Як** `Seller`,  
+**я хочу** додавати та змінювати товари у своєму магазині,  
+**щоб** покупці бачили актуальний каталог.
+
+```gherkin
+Feature: Керування товарами продавця (EARS-08, EARS-09, EARS-10)
+
+  Scenario: Додавання товару до власного магазину
+    Given продавець Seller авторизований і є owner STORE з id = S1
+    When продавець додає PRODUCT з title = "Чохол", price = 200 UAH, stock_quantity = 10, store_id = S1
+    Then створюється PRODUCT зі store_id = S1
+    And PRODUCT.stock_quantity = 10
+
+  Scenario: Спроба змінити товар чужого магазину відхиляється
+    Given STORE з id = S2 належить іншому продавцю
+    When продавець намагається змінити PRODUCT з store_id = S2
+    Then система відхиляє зміну
+    And PRODUCT не змінюється
+```
+
+**Acceptance:** продавець змінює лише власні магазини та товари.
 
 ---
 

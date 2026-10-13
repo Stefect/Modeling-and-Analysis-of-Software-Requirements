@@ -2,107 +2,48 @@
 
 ## 1. Намір і критерії
 
-Розробити повний пакет функціональних вимог (EARS), User Stories із Gherkin-сценаріями та Use Case діаграму для мультивендорного маркетплейсу, узгодженої із концептуальною моделлю даних (ERD) із Завдання 1.
+Описати функціональні вимоги маркетплейсу (EARS, user stories, Gherkin, Use Case діаграма), узгоджені з ERD Завдання 1.
+Критерії: усі вимоги в EARS; діаграма з генералізацією акторів та `<<include>>`/`<<extend>>`; прецеденти прив'язані до сутностей ERD; матриця трасування з Out of Scope.
 
-Критерії готовності:
-- Усі функціональні вимоги записані за синтаксисом EARS.
-- Use Case діаграма містить акторів з генералізацією, прецеденти використання та зв'язки include/extend.
-- Всі Use Cases прив'язані до сутностей ER-моделі (USER, STORE, PRODUCT, ORDER, ORDER_ITEM, REVIEW).
-- Створено матрицю трасування та визначено межі системи (Out of Scope).
+## 2. Топ-3 розбіжності (знайдені в AI-результаті та виправлені)
 
----
+1. **Оплата як обов'язковий include.** AI зробив оплату частиною створення замовлення. Виправлено: оплата — `<<extend>>`, фіксація ціни — `<<include>>` (ітерація 2).
+   - Коміт: [2a9dc326](https://github.com/Stefect/Modeling-and-Analysis-of-Software-Requirements/commit/2a9dc326f89c664d97e10b3d11e990f5a2517f94)
+   - Промпт: `ai/task-2-prompt-history.md`, ітерація 2. Spec: `task-2/spec.md`, розд. 3.
 
-## 2. Топ-3 розбіжності та виправлення
+2. **Відсутність генералізації акторів.** `Customer` і `Seller` були незалежними. Виправлено: абстрактний актор `User` (ітерація 2).
+   - Коміт: [2a9dc326](https://github.com/Stefect/Modeling-and-Analysis-of-Software-Requirements/commit/2a9dc326f89c664d97e10b3d11e990f5a2517f94)
+   - Промпт: `ai/task-2-prompt-history.md`, ітерація 2. Spec: `task-2/spec.md`, розд. 3.
 
-1. Некоректна логіка включення оплати
-   - Проблема: Генерація AI позначала оплату обов'язковим include для створення замовлення.
-   - Виправлення: Вказано як extend, обов'язковим include стала фіксація ціни (UC_Snapshot). Ітерація 2.
-   - Обґрунтування: Оплата відбувається після створення замовлення, може здійснюватися готівкою чи після отримання товару.
-   - Коміт: [2a9dc326](https://github.com/Stefect/Modeling-and-Analysis-of-Software-Requirements/commit/2a9dc326f89c664d97e10b3d11e990f5a2517f94) — `додав початкову специфікацію та акторів для Завдання 2 у spec.md` (`<<extend>>` для оплати, `<<include>>` для фіксації ціни)
-   - Промпт: `ai/task-2-prompt-history.md`, ітерація 2. Spec: `task-2/spec.md`, розд. 3 (п. 3).
+3. **Вимоги без сутностей БД.** EARS описували поведінку без атрибутів ERD. Виправлено: у вимогах явно вказано сутності та атрибути (ітерація 5).
+   - Коміт: [0855572](https://github.com/Stefect/Modeling-and-Analysis-of-Software-Requirements/commit/08555728487477056a7dd2b247e903c427577683)
+   - Промпт: `ai/task-2-prompt-history.md`, ітерація 5. Spec: `task-2/README.md`, розд. 2.
 
-2. Відсутність генералізації акторів
-   - Проблема: Customer та Seller були незалежними акторами без спільного батька.
-   - Виправлення: Введено абстрактного актора User з успадкуванням. Ітерація 2.
-   - Обґрунтування: Обидві ролі використовують одну систему аутентифікації та управління профілем.
-   - Коміт: [2a9dc326](https://github.com/Stefect/Modeling-and-Analysis-of-Software-Requirements/commit/2a9dc326f89c664d97e10b3d11e990f5a2517f94) — `додав початкову специфікацію та акторів для Завдання 2 у spec.md` (узагальнення `User` для `Customer` і `Seller`)
-   - Промпт: `ai/task-2-prompt-history.md`, ітерація 2. Spec: `task-2/spec.md`, розд. 3 (п. 3).
+## 3. Ключове рішення
 
-3. Вимоги без прив'язки до сутностей БД
-   - Проблема: EARS-вимоги описували поведінку без конкретних атрибутів та сутностей.
-   - Виправлення: Вимоги переписано з явним зазначенням сутностей (ORDER, ORDER_ITEM, stock_quantity, unit_price). Ітерація 5.
-   - Обґрунтування: Забезпечує наскрізне трасування від вимог до фізичної схеми.
-   - Коміт: [0855572](https://github.com/Stefect/Modeling-and-Analysis-of-Software-Requirements/commit/08555728487477056a7dd2b247e903c427577683) — `виправив розбіжності та невідповідності` (атрибути сутностей у EARS, DEFENSE, trace-matrix)
-   - Промпт: `ai/task-2-prompt-history.md`, ітерація 5. Spec: `task-2/README.md`, розд. 2 (EARS-01..06 з атрибутами ERD).
+Обрано EARS + Use Case діаграму + Gherkin (`docs/adr/0004`).
+- Альтернатива «лише user stories»: двозначність формулювань.
+- Альтернатива «лише EARS без діаграми»: не видно залежностей між прецедентами.
 
----
+Оплата — `<<extend>>`, ціна — `<<include>>` (`docs/adr/0005`). Оплата як include блокує готівку та післяплату. Ціна фіксується при створенні замовлення, а не при оплаті.
 
-## 3. Ключові рішення (ADR)
+`User` — абстрактний актор (`docs/adr/0006`): одна автентифікація, рольові права для `Customer` і `Seller`.
 
-Повні записи за MADR: `docs/adr/0004`, `0005`, `0006`.
+## 4. Перевірка: узгодженість із моделлю даних (ERD)
 
-### ADR-01: Комбінація EARS та Use Cases (`docs/adr/0004-ears-with-use-cases.md`)
+Атрибути й ключі перевірено за `marketplace-er/spec.md`.
 
-Обрано синтаксис EARS з UML Use Case діаграмами.
+| Сутність | Атрибути (spec.md) | Покриття в Завданні 2 |
+| :--- | :--- | :--- |
+| USER | id, email, password_hash, first_name, last_name, phone, role, created_at | UC_Auth, EARS-02, EARS-06 |
+| STORE | id, owner_id, name, description, created_at | UC_ManageStore, EARS-08, EARS-10 |
+| PRODUCT | id, store_id, category_id, title, description, price, stock_quantity, status, created_at | UC_Search, UC_SearchCat, UC_CreateOrder, UC_ManageProduct, EARS-01..03, EARS-09, EARS-10 |
+| CATEGORY | id, parent_id, name, slug, description | UC_SearchCat, EARS-01 |
+| ORDER | id, customer_id, status, total_amount, shipping_address, payment_status, created_at | UC_CreateOrder, UC_Pay, EARS-02..05 |
+| ORDER_ITEM | id, order_id, product_id, quantity, unit_price | UC_Snapshot (include), EARS-02 |
+| REVIEW | id, user_id, product_id, rating, comment, created_at | UC_Review, EARS-06 |
 
-Альтернативи:
-- Тільки User Stories: недостатня точність, ризик двозначності.
-- Тільки EARS без UC: втрачається структурування взаємодій, неможливо показати залежності.
+- Обчислювані поля (`STORE.rating`, сума рядка) не зберігаються, згідно з 3NF.
+- EARS-07 (митна вартість) — Out of Scope (`trace-matrix.md`, розд. 3).
 
-Обґрунтування: Комбінація забезпечує максимальну точність, явну архітектуру, наскрізне трасування, явне розмежування include/extend.
-
----
-
-### ADR-02: Оплата як extend до замовлення (`docs/adr/0005-payment-as-extend.md`)
-
-Обрано позначення оплати (UC_Pay) як extend для UC_CreateOrder, фіксація ціни - як include.
-
-Альтернативи:
-- Оплата як include: блокує готівку, післяплату, розстрочку - не універсально.
-- Оплата незалежна: розриває ланцюжок статусів, втрачає консистентність.
-
-Обґрунтування: Дозволяє різні способи оплати, замовлення існує в Pending довгий час, ціна фіксується при створенні замовлення, а не при оплаті.
-
----
-
-### ADR-03: Генералізація User (`docs/adr/0006-user-generalization.md`)
-
-Обрано введення абстрактного актора User з успадкуванням Customer та Seller.
-
-Альтернативи:
-- Два незалежних актора: дублювання аутентифікації, порушення DRY.
-- Один режим без розділення: втрачається семантика ролей, складніше з дозволами.
-
-Обґрунтування: Єдина точка входу для автентифікації, чіткі рольові дозволи (RBAC), консистентність з ERD де USER - базова таблиця.
-
----
-
-## 4. Узгодженість з моделлю даних (ERD)
-
-Трасування всіх 7 сутностей ERD:
-
-| Сутність | Атрибути | Використання в Завданні 2 | EARS / Use Case | Статус |
-| :--- | :--- | :--- | :--- | :--- |
-| USER | id (PK), email, password_hash, first_name, last_name, phone, role, created_at | Автентифікація та профіль (Customer, Seller) | UC_Auth, EARS-02, -06 | Повне |
-| STORE | id (PK), owner_id (FK → USER), name, description, created_at | Керування магазином | UC_ManageStore | Повне |
-| PRODUCT | id (PK), store_id (FK), category_id (FK), title, description, price, stock_quantity, status, created_at | Пошук, фільтрація, резервування, фіксація ціни | UC_Search, UC_SearchCat, UC_CreateOrder, UC_Snapshot, EARS-01, -02, -03 | Повне |
-| CATEGORY | id (PK), parent_id (FK → CATEGORY, optional), name, slug, description | Ієрархічна фільтрація | UC_SearchCat, EARS-01 | Повне |
-| ORDER | id (PK), customer_id (FK → USER), status, total_amount, shipping_address, payment_status, created_at | Створення, управління статусом, резервування залишків | UC_CreateOrder, UC_Pay, EARS-02, -03, -04, -05 | Повне |
-| ORDER_ITEM | id (PK), order_id (FK), product_id (FK), quantity, unit_price | Фіксація ціни (Price Snapshot) | UC_Snapshot (include), EARS-02 | Повне |
-| REVIEW | id (PK), user_id (FK → USER), product_id (FK → PRODUCT), rating, comment, created_at | Оцінки та коментарі до товарів | UC_Review, EARS-06 | Повне |
-
-Ключові моменти:
-
-Price Snapshot (ORDER_ITEM.unit_price) є явним include в UC_CreateOrder - гарантує фіксацію ціни в момент створення замовлення, не при оплаті.
-
-Резервування (PRODUCT.stock_quantity) блокує залишки в стані Pending (EARS-03), скасовує при відмові платежу (EARS-05).
-
-Обчислювані поля (рейтинг магазину, сума рядка замовлення) не зберігаються в таблицях, згідно з 3NF із `spec.md`; рейтинг розраховується з `REVIEW.rating` у запитах.
-
-Ієрархія категорій (CATEGORY.parent_id) дозволяє багаторівневі фільтри в UC_SearchCat.
-
-Out of Scope (EARS-07) - міжнародна логістика та митні збори винесені за межі системи.
-
-Висновок: Все 7 сутностей мають явну роль. Трасування замкнене: вимога ↔ Use Case ↔ сутність БД. Жодна вимога без закріплення, жодна сутність без використання.
-
----
+Прецеденти продавця (UC_ManageStore, UC_ManageProduct) закрито EARS-08..10 і US-05. Вимоги спираються на `owner_id` і `store_id` з ERD.
