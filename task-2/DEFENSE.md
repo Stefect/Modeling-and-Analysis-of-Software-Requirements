@@ -33,7 +33,9 @@
 
 ## 3. Ключові рішення (ADR)
 
-### ADR-01: Комбінація EARS та Use Cases
+Повні записи за MADR: `docs/adr/0004`, `0005`, `0006`.
+
+### ADR-01: Комбінація EARS та Use Cases (`docs/adr/0004-ears-with-use-cases.md`)
 
 Обрано синтаксис EARS з UML Use Case діаграмами.
 
@@ -45,7 +47,7 @@
 
 ---
 
-### ADR-02: Оплата як extend до замовлення
+### ADR-02: Оплата як extend до замовлення (`docs/adr/0005-payment-as-extend.md`)
 
 Обрано позначення оплати (UC_Pay) як extend для UC_CreateOrder, фіксація ціни - як include.
 
@@ -57,7 +59,7 @@
 
 ---
 
-### ADR-03: Генералізація User
+### ADR-03: Генералізація User (`docs/adr/0006-user-generalization.md`)
 
 Обрано введення абстрактного актора User з успадкуванням Customer та Seller.
 
