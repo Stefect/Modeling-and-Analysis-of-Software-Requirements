@@ -31,14 +31,102 @@
 **я хочу** оформлювати замовлення з фіксацією ціни на момент купівлі,  
 **щоб** вартість товарів у моєму чеку не змінювалася у разі оновлення прайсу продавцем.
 
-| Крок | Ключове слово | Сценарій / Дія | Сутності & Атрибути |
-| :--- | :--- | :--- | :--- |
-| **Precondition** | **Given** | Покупець `Customer` авторизований у системі | `USER` (`id`) |
-| **Context** | **And** | У кошику є товар `PRODUCT` із ціною 500 UAH | `PRODUCT` (`price` = 500) |
-| **Action** | **When** | Покупець натискає кнопку "Оформити замовлення" | `UC_CreateOrder` |
-| **Outcome 1** | **Then** | Система створює новий запис `ORDER` зі статусом `Pending` | `ORDER` (`status` = 'Pending') |
-| **Outcome 2** | **And** | Фіксує знімок ціни у сутності `ORDER_ITEM` | `ORDER_ITEM` (`unit_price` = 500) |
-| **Outcome 3** | **And** | Зменшує доступну кількість товарних залишків | `PRODUCT` (`stock_quantity`) |
+```gherkin
+Feature: Оформлення замовлення з фіксацією ціни (EARS-02, EARS-03)
+
+  Scenario: Створення замовлення з Price Snapshot і резервуванням залишку
+    Given покупець Customer авторизований у системі (USER.id заповнений)
+    And у кошику є товар PRODUCT з price = 500 UAH і stock_quantity >= 1
+    When покупець натискає "Оформити замовлення" (UC_CreateOrder)
+    Then створюється ORDER зі status = "Pending" і customer_id = USER.id
+    And створюється ORDER_ITEM з unit_price = 500 UAH
+    And PRODUCT.stock_quantity зменшується на ORDER_ITEM.quantity
+
+  Scenario: Зміна ціни товару після оформлення не впливає на замовлення
+    Given існує ORDER_ITEM з unit_price = 500 UAH
+    When продавець змінює PRODUCT.price на 600 UAH
+    Then ORDER_ITEM.unit_price залишається 500 UAH
+```
+
+**Acceptance:** після оформлення ціна в чеку не змінюється, навіть якщо продавець оновив прайс.
+
+---
+
+### US-02: Онлайн-оплата замовлення (extend) та скасування резерву при відмові
+
+**Як** `Customer`,  
+**я хочу** оплатити замовлення онлайн або обрати інший спосіб оплати,  
+**щоб** оплата не блокувала оформлення замовлення і не залишала резерв при відмові банку.
+
+```gherkin
+Feature: Онлайн-оплата як extend до оформлення (EARS-04, EARS-05)
+
+  Scenario: Успішна онлайн-оплата
+    Given існує ORDER зі status = "Pending"
+    When покупець обирає онлайн-оплату (UC_Pay)
+    And Payment Gateway повертає статус "approved"
+    Then ORDER.status змінюється на "Paid"
+    And ORDER.payment_status = "approved"
+
+  Scenario: Відмова платежу скасовує резерв
+    Given існує ORDER зі status = "Pending" і зарезервованими PRODUCT.stock_quantity
+    When покупець обирає онлайн-оплату (UC_Pay)
+    And Payment Gateway повертає статус "declined"
+    Then ORDER.status змінюється на "Unpaid"
+    And резерв товарів скасовується (PRODUCT.stock_quantity повертається)
+
+  Scenario: Оплата не обрана (extend не виконується)
+    Given існує ORDER зі status = "Pending"
+    When покупець не обирає онлайн-оплату
+    Then ORDER залишається у status = "Pending"
+    And Payment Gateway не викликається
+```
+
+**Acceptance:** оформлення замовлення не залежить від оплати; відмова платежу не залишає заблокованих залишків.
+
+---
+
+### US-03: Залишення відгуку на товар
+
+**Як** `Customer`,  
+**я хочу** залишити оцінку та коментар до товару,  
+**щоб** інші покупці бачили досвід використання товару.
+
+```gherkin
+Feature: Відгук на товар (EARS-06)
+
+  Scenario: Збереження відгуку
+    Given покупець Customer авторизований у системі
+    And товар PRODUCT з id = P1 існує
+    When покупець залишає відгук з rating = 5 і comment = "Добре"
+    Then створюється REVIEW з user_id = USER.id, product_id = P1, rating = 5
+    And REVIEW.comment = "Добре"
+```
+
+**Acceptance:** відгук зберігається з прив'язкою до `USER` і `PRODUCT`.
+
+---
+
+### US-04: Пошук товарів з фільтром за ієрархією категорій (EARS-01)
+
+**Як** `Customer`,  
+**я хочу** шукати товари у категорії разом із її підкатегоріями,  
+**щоб** швидко знаходити потрібний товар.
+
+```gherkin
+Feature: Пошук і фільтрація за категоріями (EARS-01)
+
+  Scenario: Фільтр за батьківською категорією включає підкатегорії
+    Given існує CATEGORY "Електроніка" з дочірньою CATEGORY "Смартфони" (parent_id = Електроніка.id)
+    And існує PRODUCT з category_id = Смартфони.id
+    When покупець фільтрує товари за категорією "Електроніка" (UC_SearchCat)
+    Then результат містить PRODUCT з category_id = Смартфони.id
+
+  Scenario: Пошук без фільтра
+    Given існують товари PRODUCT у різних категоріях
+    When покупець виконує пошук за назвою (UC_Search)
+    Then результат містить товари, що відповідають запиту
+```
 
 ---
 
