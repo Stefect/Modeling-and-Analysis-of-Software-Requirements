@@ -229,13 +229,22 @@ Mermaid не має окремої нотації Use Case; тут викори�
 
 ```mermaid
 flowchart TD
-    %% --- Актори ---
-    User([User])
-    Anonymous([Anonymous])
-    Customer([Customer])
-    Seller([Seller])
-    PaymentGateway([Payment Gateway])
-    SystemTimer([System Timer])
+    %% --- Актори (колонка зверху вниз) ---
+    subgraph Actors ["Актори"]
+        direction TB
+        User([User])
+        Anonymous([Anonymous])
+        Customer([Customer])
+        Seller([Seller])
+        PaymentGateway([Payment Gateway])
+        SystemTimer([System Timer])
+
+        User ~~~ Anonymous
+        Anonymous ~~~ Customer
+        Customer ~~~ Seller
+        Seller ~~~ PaymentGateway
+        PaymentGateway ~~~ SystemTimer
+    end
 
     Anonymous -->|успадковує| User
     Customer -->|успадковує| User
