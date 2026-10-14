@@ -4,16 +4,18 @@
 
 | Актор | Тип | Опис |
 | :--- | :--- | :--- |
-| **User** | Abstract | Абстрактний базовий актор для автентифікованих користувачів. |
-| **Customer** | Primary | Покупець, який шукає товари, оформлює замовлення та залишає відгуки. |
-| **Seller** | Primary | Продавець, який керує магазином STORE та каталогом PRODUCT. |
+| **User** | Abstract | Абстрактний базовий актор (спільна автентифікація). |
+| **Anonymous** | Primary | Неавторизований відвідувач; шукає товари, входить у систему. Успадковує `User`. |
+| **Customer** | Primary | Покупець, який шукає товари, оформлює замовлення та залишає відгуки. Успадковує `User`. |
+| **Seller** | Primary | Продавець, який керує магазином STORE та каталогом PRODUCT. Успадковує `User`. |
 | **Payment Gateway** | External | Зовнішня платіжна система для обробки онлайн-транзакцій. |
+| **System Timer** | Internal | Внутрішній тригер за часом; не є людиною. Запускає перевірку неоплачених замовлень. |
 
 ---
 
 ## 2. Функціональні вимоги у форматі EARS
 
-- **EARS-01 (Ubiquitous):** Система SHALL повертати товари `PRODUCT`, що відповідають пошуковому запиту; для вибраної `CATEGORY` — товари цієї категорії та її підкатегорій.
+- **EARS-01 (Ubiquitous):** Система SHALL повертати товари `PRODUCT`, що відповідають пошуковому запиту; для вибраної `CATEGORY` — товари цієї категорії та її підкатегорій. Доступно `Anonymous` і `Customer`.
 - **EARS-02 (Event-driven):** WHEN покупець `Customer` підтверджує замовлення, система SHALL створювати запис `ORDER` та фіксувати знімок ціни `unit_price` у сутності `ORDER_ITEM`.
 - **EARS-03 (State-driven):** WHILE замовлення перебуває у статусі `Pending`, система SHALL резервувати `ORDER_ITEM.quantity` одиниць товару, зменшуючи `PRODUCT.stock_quantity` на цю кількість.
 - **EARS-04 (Optional):** WHERE покупець обирає онлайн-оплату, система SHALL ініціювати транзакцію через `Payment Gateway`.
@@ -22,6 +24,8 @@
 - **EARS-08 (Event-driven):** WHEN продавець `Seller` створює або редагує `STORE`, система SHALL зберігати `name` і `description` з прив'язкою `owner_id` до `USER`.
 - **EARS-09 (Event-driven):** WHEN продавець `Seller` додає або змінює `PRODUCT`, система SHALL зберігати `title`, `price`, `stock_quantity` з прив'язкою `store_id` до `STORE`, що належить продавцю.
 - **EARS-10 (Unwanted Behavior):** IF продавець намагається змінити `STORE` або `PRODUCT`, який йому не належить (`STORE.owner_id` ≠ `USER.id`), THEN система SHALL відхиляти зміну.
+- **EARS-11 (Event-driven):** WHEN анонімний користувач `Anonymous` надсилає `USER.email` і пароль, система SHALL автентифікувати його за `USER.password_hash` і створювати сесію з роллю `USER.role`; IF пароль не збігається, THEN система SHALL відмовляти у вході без створення сесії.
+- **EARS-12 (Unwanted Behavior):** IF `ORDER` залишається у статусі `Pending` понад 24 години без успішної оплати (`ORDER.payment_status` ≠ `approved`), THEN система SHALL змінювати `ORDER.status` на `Cancelled` і повертати `ORDER_ITEM.quantity` до `PRODUCT.stock_quantity`. *Строк 24 год — див. `docs/adr/0007-pending-order-expiry.md`.*
 - **EARS-07 (Optional, Out of Scope):** WHERE товар доставляється за межі внутрішнього ринку, система SHALL розраховувати міжнародну митну вартість і збори. *Статус: Out of Scope, див. `trace-matrix.md`, розділ 3.*
 
 ---
@@ -55,14 +59,14 @@ Feature: Оформлення замовлення з фіксацією цін�
 
 ---
 
-### US-02: Онлайн-оплата замовлення (extend) та скасування резерву при відмові
+### US-02: Онлайн-оплата замовлення (extend) та скасування резерву
 
 **Як** `Customer`,  
 **я хочу** оплатити замовлення онлайн або обрати інший спосіб оплати,  
 **щоб** оплата не блокувала оформлення замовлення і не залишала резерв при відмові банку.
 
 ```gherkin
-Feature: Онлайн-оплата як extend до оформлення (EARS-04, EARS-05)
+Feature: Онлайн-оплата як extend до оформлення (EARS-04, EARS-05, EARS-12)
 
   Scenario: Успішна онлайн-оплата
     Given існує ORDER зі status = "Pending"
@@ -83,9 +87,16 @@ Feature: Онлайн-оплата як extend до оформлення (EARS-0
     When покупець не обирає онлайн-оплату
     Then ORDER залишається у status = "Pending"
     And Payment Gateway не викликається
+
+  Scenario: Неоплачене замовлення скасовується через 24 години
+    Given існує ORDER зі status = "Pending", створений 24 години тому, з payment_status != "approved"
+    And зарезервовані PRODUCT.stock_quantity для його ORDER_ITEM
+    When System Timer запускає перевірку (UC_ExpireOrder)
+    Then ORDER.status змінюється на "Cancelled"
+    And PRODUCT.stock_quantity повертається на ORDER_ITEM.quantity
 ```
 
-**Acceptance:** оформлення замовлення не залежить від оплати; відмова платежу не залишає заблокованих залишків.
+**Acceptance:** оформлення замовлення не залежить від оплати; відмова платежу і автоскасування не залишають заблокованих залишків.
 
 ---
 
@@ -136,11 +147,17 @@ Feature: Пошук і фільтрація за категоріями (EARS-01
 ### US-05: Керування магазином і товарами продавця (EARS-08..10)
 
 **Як** `Seller`,  
-**я хочу** додавати та змінювати товари у своєму магазині,  
+**я хочу** створювати магазин, а також додавати та змінювати товари у своєму магазині,  
 **щоб** покупці бачили актуальний каталог.
 
 ```gherkin
-Feature: Керування товарами продавця (EARS-08, EARS-09, EARS-10)
+Feature: Керування магазином і товарами продавця (EARS-08, EARS-09, EARS-10)
+
+  Scenario: Створення магазину з власником
+    Given продавець Seller авторизований і ще не має STORE
+    When продавець створює STORE з name = "Моя крамниця" і description = "Електроніка" (UC_ManageStore)
+    Then створюється STORE з owner_id = USER.id
+    And STORE.name = "Моя крамниця" і STORE.description = "Електроніка"
 
   Scenario: Додавання товару до власного магазину
     Given продавець Seller авторизований і є owner STORE з id = S1
@@ -159,47 +176,82 @@ Feature: Керування товарами продавця (EARS-08, EARS-09,
 
 ---
 
+### US-06: Анонімний перегляд і автентифікація (EARS-01, EARS-11)
+
+**Як** `Anonymous`,  
+**я хочу** шукати товари без входу і увійти в обліковий запис,  
+**щоб** користуватися каталогом та оформити покупку.
+
+```gherkin
+Feature: Анонімний пошук і вхід (EARS-01, EARS-11)
+
+  Scenario: Анонімний користувач шукає товари без входу
+    Given користувач Anonymous не авторизований
+    When користувач виконує пошук за назвою (UC_Search)
+    Then результат містить товари, що відповідають запиту
+
+  Scenario: Успішна автентифікація
+    Given існує USER з email = "a@b.ua", role = "customer" і відповідним password_hash
+    When Anonymous надсилає email і правильний пароль (UC_Auth)
+    Then створюється сесія з роллю "customer"
+
+  Scenario: Невірний пароль відхиляється
+    Given існує USER з email = "a@b.ua"
+    When Anonymous надсилає email і неправильний пароль (UC_Auth)
+    Then вхід відхиляється
+    And сесія не створюється
+```
+
+---
+
 ## 4. Use Case Model
 
 ### 4.1. Специфікація прецедентів використання (Таблиця)
 
 | Use Case ID | Назва прецеденту | Актор | Тип зв'язку | Опис / Пов'язаний UC |
 | :--- | :--- | :--- | :--- | :--- |
-| **UC_Auth** | Авторизуватися в системі | `User` | Primary | Базова автентифікація користувача. |
-| **UC_Search** | Шукати товари | `Customer` | Primary | Пошук товарів у каталозі `PRODUCT`. |
-| **UC_SearchCat** | Фільтрувати за `CATEGORY` | `Customer` | `<<extend>>` | **Опціональний:** фільтр категорій розширює `UC_Search`. |
+| **UC_Auth** | Авторизуватися в системі | `User` (`Anonymous`) | Primary | Автентифікація за `USER.email` і `password_hash` (EARS-11). |
+| **UC_Search** | Шукати товари | `Anonymous`, `Customer` | Primary | Пошук товарів у каталозі `PRODUCT`. |
+| **UC_SearchCat** | Фільтрувати за `CATEGORY` | `Anonymous`, `Customer` | `<<extend>>` | **Опціональний:** фільтр категорій розширює `UC_Search`. |
 | **UC_CreateOrder**| Оформити замовлення `ORDER` | `Customer` | Primary | Створення замовлення зі статусом `Pending`. |
 | **UC_Snapshot** | Зафіксувати ціну `unit_price`| System | `<<include>>` | **Обов'язковий:** фіксація ціни в `ORDER_ITEM`. |
 | **UC_Pay** | Оплатити через шлюз | `Payment Gateway`| `<<extend>>` | **Опціональний:** онлайн-оплата після створення. |
+| **UC_ExpireOrder** | Автоскасувати неоплачене `ORDER` | `System Timer` | Primary (тригер часу) | Переведення `Pending` → `Cancelled` через 24 год (EARS-12). |
 | **UC_Review** | Залишити відгук `REVIEW` | `Customer` | Primary | Оцінка та коментар до товару (EARS-06). |
-| **UC_ManageStore**| Керувати магазином `STORE` | `Seller` | Primary | Налаштування профілю магазину продавця. |
-| **UC_ManageProduct**| Управляти товарами `PRODUCT`| `Seller` | Primary | Додавання та редагування товарів. |
+| **UC_ManageStore**| Керувати магазином `STORE` | `Seller` | Primary | Створення та редагування профілю магазину (EARS-08, 10). |
+| **UC_ManageProduct**| Управляти товарами `PRODUCT`| `Seller` | Primary | Додавання та редагування товарів (EARS-09, 10). |
 
 ---
 
 ### 4.2. Use Case Diagram (Компактна вертикальна)
 
+Mermaid не має окремої нотації Use Case; тут використано `flowchart` для рендеру на GitHub. Еталонна UML-версія з трикутниками генералізації — `task-2/use-case.puml`.
+
 ```mermaid
 flowchart TD
     %% --- Актори ---
     User([User])
+    Anonymous([Anonymous])
     Customer([Customer])
     Seller([Seller])
     PaymentGateway([Payment Gateway])
+    SystemTimer([System Timer])
 
+    Anonymous -->|успадковує| User
     Customer -->|успадковує| User
     Seller -->|успадковує| User
 
     %% --- Межі системи ---
     subgraph Marketplace ["Мультивендорний Маркетплейс"]
         direction TB
-        
+
         UC_Auth("UC_Auth: Авторизація")
         UC_Search("UC_Search: Пошук товарів")
         UC_SearchCat("UC_SearchCat: Фільтр CATEGORY")
         UC_CreateOrder("UC_CreateOrder: Оформлення ORDER")
         UC_Snapshot("UC_Snapshot: Фіксація unit_price")
         UC_Pay("UC_Pay: Оплата")
+        UC_ExpireOrder("UC_ExpireOrder: Автоскасування")
         UC_Review("UC_Review: Відгук REVIEW")
         UC_ManageStore("UC_ManageStore: Магазин STORE")
         UC_ManageProduct("UC_ManageProduct: Товари PRODUCT")
@@ -210,7 +262,8 @@ flowchart TD
         UC_SearchCat ~~~ UC_CreateOrder
         UC_CreateOrder ~~~ UC_Snapshot
         UC_Snapshot ~~~ UC_Pay
-        UC_Pay ~~~ UC_Review
+        UC_Pay ~~~ UC_ExpireOrder
+        UC_ExpireOrder ~~~ UC_Review
         UC_Review ~~~ UC_ManageStore
         UC_ManageStore ~~~ UC_ManageProduct
 
@@ -222,6 +275,8 @@ flowchart TD
 
     %% --- Зв'язки Акторів ---
     User --> UC_Auth
+    Anonymous --> UC_Search
+    Anonymous --> UC_Auth
     Customer --> UC_Search
     Customer --> UC_SearchCat
     Customer --> UC_CreateOrder
@@ -231,3 +286,5 @@ flowchart TD
     Seller --> UC_ManageProduct
 
     UC_Pay --> PaymentGateway
+    SystemTimer --> UC_ExpireOrder
+```

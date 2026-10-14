@@ -1,0 +1,43 @@
+@startuml use-case
+left to right direction
+skinparam packageStyle rectangle
+
+actor "User" as User <<abstract>>
+actor "Anonymous" as Anon
+actor "Customer" as Cust
+actor "Seller" as Sell
+actor "Payment Gateway" as PG
+actor "System Timer" as Timer
+
+Anon --|> User
+Cust --|> User
+Sell --|> User
+
+rectangle "Мультивендорний Маркетплейс" {
+  usecase "UC_Auth\nАвторизація" as Auth
+  usecase "UC_Search\nПошук товарів" as Search
+  usecase "UC_SearchCat\nФільтр CATEGORY" as SearchCat
+  usecase "UC_CreateOrder\nОформлення ORDER" as Create
+  usecase "UC_Snapshot\nФіксація unit_price" as Snap
+  usecase "UC_Pay\nОплата" as Pay
+  usecase "UC_ExpireOrder\nАвтоскасування" as Expire
+  usecase "UC_Review\nВідгук REVIEW" as Review
+  usecase "UC_ManageStore\nМагазин STORE" as MStore
+  usecase "UC_ManageProduct\nТовари PRODUCT" as MProd
+}
+
+Anon --> Auth
+Anon --> Search
+Cust --> Search
+Cust --> SearchCat
+Cust --> Create
+Cust --> Review
+Sell --> MStore
+Sell --> MProd
+Pay --> PG
+Timer --> Expire
+
+Create ..> Snap : <<include>>
+Pay ..> Create : <<extend>>
+SearchCat ..> Search : <<extend>>
+@enduml
