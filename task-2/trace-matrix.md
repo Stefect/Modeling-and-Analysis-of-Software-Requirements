@@ -15,6 +15,7 @@
 | **EARS-10** | Unwanted Behavior | Відхилення змін магазину або товару чужим продавцем | `UC_ManageStore`, `UC_ManageProduct` | `STORE`, `PRODUCT` | Повне |
 | **EARS-11** | Event-driven | Автентифікація анонімного користувача за email і паролем | `UC_Auth` | `USER` | Повне |
 | **EARS-12** | Unwanted Behavior | Автоскасування `Pending` без оплати через 24 год із поверненням резерву | `UC_ExpireOrder`, `UC_Pay` | `ORDER`, `PRODUCT` | Повне |
+| **EARS-13** | Event-driven | Повторна оплата `Unpaid` із повторним резервом; відмова при нестачі товару | `UC_Pay`, `UC_CreateOrder` | `ORDER`, `PRODUCT`, `ORDER_ITEM` | Повне |
 | **EARS-07** | Optional | Розрахунок міжнародної митної вартості та зборів (WHERE доставка за межі ринку) | *Відсутній* | *Відсутні* | **Out of Scope** |
 
 > **Примітка щодо N:M трасування:**
@@ -31,7 +32,7 @@
 | `UC_SearchCat` | EARS-01 |
 | `UC_CreateOrder` | EARS-02, EARS-03, EARS-04, EARS-05 |
 | `UC_Snapshot` | EARS-02 |
-| `UC_Pay` | EARS-04, EARS-05, EARS-12 |
+| `UC_Pay` | EARS-04, EARS-05, EARS-12, EARS-13 |
 | `UC_ExpireOrder` | EARS-12 |
 | `UC_Review` | EARS-06 |
 | `UC_ManageStore` | EARS-08, EARS-10 |
@@ -46,7 +47,7 @@
 - **Postconditions:** Створено запис `ORDER` зі статусом `Pending`; створено позиції `ORDER_ITEM` зі знімком ціни `unit_price`; зменшено доступний `stock_quantity` у `PRODUCT`.
 
 ### UC_Pay (Оплатити через шлюз)
-- **Preconditions:** Існує замовлення `ORDER` у статусі `Pending` або `Unpaid`.
+- **Preconditions:** Існує замовлення `ORDER` у статусі `Pending` або `Unpaid`. Для `Unpaid` перед оплатою виконується повторний резерв (EARS-13); якщо товару недостатньо, оплата відхиляється.
 - **Postconditions:** Статус замовлення змінюється на `Paid` у разі успіху, або скасовується резерв товарів у разі відмови транзакції.
 
 ### UC_ExpireOrder (Автоскасування неоплаченого замовлення)

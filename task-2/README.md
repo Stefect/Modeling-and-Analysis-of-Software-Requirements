@@ -24,8 +24,9 @@
 - **EARS-08 (Event-driven):** WHEN продавець `Seller` створює або редагує `STORE`, система SHALL зберігати `name` і `description` з прив'язкою `owner_id` до `USER`.
 - **EARS-09 (Event-driven):** WHEN продавець `Seller` додає або змінює `PRODUCT`, система SHALL зберігати `title`, `price`, `stock_quantity` з прив'язкою `store_id` до `STORE`, що належить продавцю.
 - **EARS-10 (Unwanted Behavior):** IF продавець намагається змінити `STORE` або `PRODUCT`, який йому не належить (`STORE.owner_id` ≠ `USER.id`), THEN система SHALL відхиляти зміну.
-- **EARS-11 (Event-driven):** WHEN анонімний користувач `Anonymous` надсилає `USER.email` і пароль, система SHALL автентифікувати його за `USER.password_hash` і створювати сесію з роллю `USER.role`; IF пароль не збігається, THEN система SHALL відмовляти у вході без створення сесії.
+- **EARS-11 (Event-driven):** WHEN анонімний користувач `Anonymous` надсилає `USER.email` і пароль, система SHALL автентифікувати його за `USER.password_hash` і створювати сесію з роллю `USER.role` (значення: `customer` або `seller`); IF пароль не збігається, THEN система SHALL відмовляти у вході без створення сесії.
 - **EARS-12 (Unwanted Behavior):** IF `ORDER` залишається у статусі `Pending` понад 24 години без успішної оплати (`ORDER.payment_status` ≠ `approved`), THEN система SHALL змінювати `ORDER.status` на `Cancelled` і повертати `ORDER_ITEM.quantity` до `PRODUCT.stock_quantity`. *Строк 24 год — див. `docs/adr/0007-pending-order-expiry.md`.*
+- **EARS-13 (Event-driven):** WHEN покупець повторює оплату `ORDER` у статусі `Unpaid`, система SHALL повторно зарезервувати `ORDER_ITEM.quantity` для кожної позиції та перевести `ORDER.status` у `Pending`; IF на складі недостатньо `PRODUCT.stock_quantity` для резерву, THEN система SHALL відхиляти повторну оплату і залишати `ORDER` у статусі `Unpaid`.
 - **EARS-07 (Optional, Out of Scope):** WHERE товар доставляється за межі внутрішнього ринку, система SHALL розраховувати міжнародну митну вартість і збори. *Статус: Out of Scope, див. `trace-matrix.md`, розділ 3.*
 
 ---
@@ -66,7 +67,7 @@ Feature: Оформлення замовлення з фіксацією цін�
 **щоб** оплата не блокувала оформлення замовлення і не залишала резерв при відмові банку.
 
 ```gherkin
-Feature: Онлайн-оплата як extend до оформлення (EARS-04, EARS-05, EARS-12)
+Feature: Онлайн-оплата як extend до оформлення (EARS-04, EARS-05, EARS-12, EARS-13)
 
   Scenario: Успішна онлайн-оплата
     Given існує ORDER зі status = "Pending"
@@ -87,6 +88,18 @@ Feature: Онлайн-оплата як extend до оформлення (EARS-0
     When покупець не обирає онлайн-оплату
     Then ORDER залишається у status = "Pending"
     And Payment Gateway не викликається
+
+  Scenario: Повторна оплата після відмови з повторним резервом
+    Given існує ORDER зі status = "Unpaid" і PRODUCT.stock_quantity >= ORDER_ITEM.quantity
+    When покупець повторює онлайн-оплату (UC_Pay)
+    Then PRODUCT.stock_quantity зменшується на ORDER_ITEM.quantity
+    And ORDER.status змінюється на "Pending" і далі обробляється як успішна або відхилена оплата
+
+  Scenario: Повторна оплата відхиляється, якщо товару немає на складі
+    Given існує ORDER зі status = "Unpaid" і PRODUCT.stock_quantity < ORDER_ITEM.quantity
+    When покупець повторює онлайн-оплату (UC_Pay)
+    Then повторна оплата відхиляється
+    And ORDER.status залишається "Unpaid"
 
   Scenario: Неоплачене замовлення скасовується через 24 години
     Given існує ORDER зі status = "Pending", створений 24 години тому, з payment_status != "approved"
