@@ -17,28 +17,39 @@
 | **EARS-12** | Unwanted Behavior | Автоскасування `Pending` без оплати через 24 год із поверненням резерву | `UC_ExpireOrder`, `UC_Pay` | `ORDER`, `PRODUCT` | Повне |
 | **EARS-13** | Event-driven | Повторна оплата `Unpaid` із повторним резервом; відмова при нестачі товару | `UC_Pay`, `UC_CreateOrder` | `ORDER`, `PRODUCT`, `ORDER_ITEM` | Повне |
 | **EARS-07** | Optional | Розрахунок міжнародної митної вартості та зборів (WHERE доставка за межі ринку) | *Відсутній* | *Відсутні* | **Out of Scope** |
+| **NFR-01** | Ubiquitous | Хешування паролів, без відкритого зберігання | `UC_Auth` | `USER` (`password_hash`) | Покрито NFR, перевірка: аудит коду/тест |
+| **NFR-02** | Ubiquitous | Передача даних лише через HTTPS (TLS 1.2+) | `UC_Auth`, `UC_CreateOrder`, `UC_Pay`, `UC_ManageStore` | Усі сутності (транспорт) | Покрито NFR, перевірка: конфігурація сервера |
+| **NFR-03** | Event-driven | Блокування входу після 5 невдалих спроб за 15 хв | `UC_Auth` | `USER` (інфраструктурний лічильник, ADR-0009) | Покрито NFR, перевірка: тест навантаження входу |
+| **NFR-04** | Ubiquitous | Видимість персональних даних лише власнику та адміністратору | `UC_Auth`, `UC_Review` | `USER` (`email`, `phone`, `first_name`, `last_name`) | Покрито NFR, перевірка: тест прав доступу |
+| **NFR-05** | Ubiquitous | Пошук ≤ 500 мс для 95% запитів при 100 000 товарів | `UC_Search`, `UC_SearchCat` | `PRODUCT`, `CATEGORY` | Покрито NFR, перевірка: навантажувальний тест |
+| **NFR-06** | Ubiquitous | Оформлення замовлення ≤ 2 с для 95% запитів (без шлюзу) | `UC_CreateOrder`, `UC_Snapshot` | `ORDER`, `ORDER_ITEM` | Покрито NFR, перевірка: навантажувальний тест |
+| **NFR-07** | Ubiquitous | Атомарна зміна `stock_quantity`, без від'ємних значень | `UC_CreateOrder`, `UC_Pay`, `UC_ExpireOrder`, `UC_ManageProduct` | `PRODUCT` | Покрито NFR, перевірка: тест паралельних замовлень |
+| **NFR-08** | Ubiquitous | `ORDER.total_amount` = сума `quantity × unit_price` | `UC_CreateOrder`, `UC_Snapshot` | `ORDER`, `ORDER_ITEM` | Покрито NFR, перевірка: тест цілісності |
+| **NFR-09** | Ubiquitous | Доступність ≥ 99,5% на місяць | Усі UC (системний рівень) | Усі сутності | Покрито NFR, перевірка: моніторинг |
+| **NFR-10** | Event-driven | Журнал аудиту входів, `ORDER.status`, `PRODUCT.stock_quantity` (поза ERD, ADR-0009) | `UC_Auth`, `UC_CreateOrder`, `UC_Pay`, `UC_ExpireOrder`, `UC_ManageProduct` | `USER`, `ORDER`, `PRODUCT` (посилання за `id`) | Покрито NFR, перевірка: тест запису журналу |
+| **NFR-11** | Ubiquitous | Адаптивний інтерфейс від 360 px | `UC_Search`, `UC_CreateOrder`, `UC_Review`, `UC_ManageStore`, `UC_ManageProduct` | Не стосується | Покрито NFR, перевірка: огляд у браузері |
 
 > **Примітка щодо N:M трасування:**
-> Вимога **EARS-02** покривається двома прецедентами (`UC_CreateOrder` та `UC_Snapshot`). Прецедент `UC_CreateOrder` бере участь у виконанні вимог **EARS-02**, **EARS-03**, **EARS-04** та **EARS-05**. Вимога **EARS-12** пов'язана з `UC_ExpireOrder` і `UC_Pay` (оплата знімає автоскасування).
+> Вимога **EARS-02** покривається двома прецедентами (`UC_CreateOrder` та `UC_Snapshot`). Прецедент `UC_CreateOrder` бере участь у виконанні вимог **EARS-02**, **EARS-03**, **EARS-04** та **EARS-05**. Вимога **EARS-12** пов'язана з `UC_ExpireOrder` і `UC_Pay` (оплата знімає автоскасування). Вимога **NFR-07** пов'язана з чотирма прецедентами.
 
 ## 2. Перевірка покриття Use Cases (зворотний напрям)
 
 Кожен прецедент має щонайменше одну вимогу; жоден не залишився без трасування.
 
-| Use Case | Вимоги EARS |
-| :--- | :--- |
-| `UC_Auth` | EARS-11 |
-| `UC_Search` | EARS-01 |
-| `UC_SearchCat` | EARS-01 |
-| `UC_CreateOrder` | EARS-02, EARS-03, EARS-04, EARS-05 |
-| `UC_Snapshot` | EARS-02 |
-| `UC_Pay` | EARS-04, EARS-05, EARS-12, EARS-13 |
-| `UC_ExpireOrder` | EARS-12 |
-| `UC_Review` | EARS-06 |
-| `UC_ManageStore` | EARS-08, EARS-10 |
-| `UC_ManageProduct` | EARS-09, EARS-10 |
+| Use Case | Вимоги EARS | Вимоги NFR |
+| :--- | :--- | :--- |
+| `UC_Auth` | EARS-11 | NFR-01, NFR-02, NFR-03, NFR-04, NFR-10, NFR-11 |
+| `UC_Search` | EARS-01 | NFR-02, NFR-05, NFR-11 |
+| `UC_SearchCat` | EARS-01 | NFR-05 |
+| `UC_CreateOrder` | EARS-02, EARS-03, EARS-04, EARS-05 | NFR-02, NFR-06, NFR-07, NFR-08, NFR-10, NFR-11 |
+| `UC_Snapshot` | EARS-02 | NFR-06, NFR-08 |
+| `UC_Pay` | EARS-04, EARS-05, EARS-12, EARS-13 | NFR-02, NFR-07, NFR-10 |
+| `UC_ExpireOrder` | EARS-12 | NFR-07, NFR-10 |
+| `UC_Review` | EARS-06 | NFR-04, NFR-11 |
+| `UC_ManageStore` | EARS-08, EARS-10 | NFR-02, NFR-11 |
+| `UC_ManageProduct` | EARS-09, EARS-10 | NFR-07, NFR-10, NFR-11 |
 
-**Непокриті вимоги:** немає, крім EARS-07 (Out of Scope, розд. 3).
+**Непокриті вимоги:** немає. EARS-07 — Out of Scope (розд. 4). NFR-01..NFR-11 трасуються до UC і сутностей (розд. 1), але перевіряються не сценаріями Gherkin, а методами, зазначеними в колонці «Стан покриття». Пороги — у `docs/adr/0009-nfr-thresholds.md`.
 
 ## 3. Передумови та постумови Use Cases
 
