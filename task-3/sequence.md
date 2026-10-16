@@ -38,10 +38,11 @@ sequenceDiagram
                 OrderService->>PaymentGateway: Списати total_amount
                 alt Оплата успішна
                     PaymentGateway-->>OrderService: approved
-                    OrderService->>Database: ORDER.payment_status = approved
+                    OrderService->>Database: ORDER.status = Paid, payment_status = approved
                 else Оплата відхилена
                     PaymentGateway-->>OrderService: declined
-                    OrderService->>Database: Повернути залишок, ORDER.status = Unpaid
+                    OrderService->>Database: Повернути PRODUCT.stock_quantity (скасування резерву, EARS-05)
+                    OrderService->>Database: ORDER.status = Unpaid
                 end
             end
             OrderService-->>WebApp: orderId, статус
