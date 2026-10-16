@@ -17,7 +17,7 @@
 | `WebApp` | Компонент UI | Клієнтський застосунок (поза ERD) |
 | `OrderService` | Сервіс | Логіка `UC_CreateOrder`, `UC_Snapshot` |
 | `UserService` | Сервіс | Перевірка сесії і ролі за `USER` |
-| `CatalogService` | Сервіс | Читання `PRODUCT`, `CATEGORY` |
+| `CatalogService` | Сервіс | Читання `PRODUCT` (у цьому сценарії `CATEGORY` не читається) |
 | `Database` | Сховище | Таблиці `USER`, `PRODUCT`, `ORDER`, `ORDER_ITEM` |
 | `PaymentGateway` | Зовнішня система | `Payment Gateway` (Завдання 2) |
 
@@ -29,8 +29,8 @@
 5. `OrderService` → `Database`: створює `ORDER` (`status = Pending`) і `ORDER_ITEM` з `unit_price` (EARS-02, `<<include>>` UC_Snapshot).
 6. `loop` по кожній позиції: `PRODUCT.stock_quantity -= ORDER_ITEM.quantity` (EARS-03).
 7. `opt`: онлайн-оплата — `PaymentGateway.charge(orderId, total)` (EARS-04, `<<extend>>` UC_Pay).
-   - `alt`: успіх → `ORDER.payment_status = approved`.
-   - `alt`: відмова → повернення резерву, `ORDER.status = Unpaid` (EARS-05).
+   - `alt`: успіх → `ORDER.status = Paid`, `ORDER.payment_status = approved` (`task-2/README.md`, US-02).
+   - `alt`: відмова → окремо повернення резерву, потім `ORDER.status = Unpaid` (EARS-05).
 8. `OrderService` → `WebApp`: повертає номер замовлення і статус.
 
 ## 4. Межі

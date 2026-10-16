@@ -34,10 +34,11 @@ else Сесія дійсна (role = customer)
       OrderService -> PaymentGateway : Списати total_amount
       alt Оплата успішна
         PaymentGateway --> OrderService : approved
-        OrderService -> Database : ORDER.payment_status = approved
+        OrderService -> Database : ORDER.status = Paid, payment_status = approved
       else Оплата відхилена
         PaymentGateway --> OrderService : declined
-        OrderService -> Database : Повернути залишок, ORDER.status = Unpaid
+        OrderService -> Database : Повернути залишок до PRODUCT.stock_quantity (EARS-05)
+        OrderService -> Database : ORDER.status = Unpaid
       end
     end
     OrderService --> WebApp : orderId, статус
