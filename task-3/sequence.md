@@ -1,6 +1,6 @@
 # Sequence-діаграма: оформлення замовлення (UC_CreateOrder)
 
-Деталізує `task-3/spec.md`, розд. 3. Учасники — розд. 2; вимоги — EARS-02..05, EARS-11 (`task-2/README.md`).
+Деталізує `task-3/spec.md`, розд. 3. Учасники — розд. 2; вимоги — EARS-02..05, EARS-14 (`task-2/README.md`).
 
 ```mermaid
 sequenceDiagram

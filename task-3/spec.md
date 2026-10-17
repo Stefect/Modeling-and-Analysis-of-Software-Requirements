@@ -6,7 +6,7 @@
 Критерії (фіксуються комітом):
 1. Діаграма покриває основний потік `UC_CreateOrder`, включно з `<<include>>` `UC_Snapshot` і `<<extend>>` `UC_Pay`.
 2. Учасники відповідають сутностям ERD (`USER`, `ORDER`, `ORDER_ITEM`, `PRODUCT`) або зовнішнім системам (`Payment Gateway`).
-3. Кожне повідомлення-виклик має реалістичну назву і посилання на EARS (`EARS-02..05`, `EARS-11`).
+3. Кожне повідомлення-виклик має реалістичну назву і посилання на EARS (`EARS-02..05`, `EARS-14`).
 4. Є щонайменше 3 гілки: помилка автентифікації, недостатній залишок, відмова оплати; є `opt` (онлайн-оплата) і `loop` (резерв по позиціях).
 5. Mermaid-блок відображається на GitHub; еталонна UML-версія — `sequence.puml` (PlantUML).
 
@@ -23,7 +23,7 @@
 
 ## 3. Ключові кроки сценарію
 1. `Customer` → `WebApp`: відкриває кошик і підтверджує замовлення.
-2. `WebApp` → `UserService`: `validateUser(sessionToken)` → `USER.role = customer`. Гілка `alt`: сесія недійсна — відмова, без створення `ORDER` (EARS-11).
+2. `WebApp` → `UserService`: `validateUser(sessionToken)` → `USER.role = customer`. Гілка `alt`: сесія недійсна — відмова 401, без створення `ORDER` (EARS-14).
 3. `OrderService` → `CatalogService`: `getProductList(productIds)` — актуальні `PRODUCT.price` і `stock_quantity`.
 4. `alt`: якщо `stock_quantity < ORDER_ITEM.quantity` — відмова, `ORDER` не створюється.
 5. `OrderService` → `Database`: створює `ORDER` (`status = Pending`) і `ORDER_ITEM` з `unit_price` (EARS-02, `<<include>>` UC_Snapshot).
