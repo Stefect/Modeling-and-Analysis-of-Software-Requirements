@@ -46,3 +46,16 @@
 **Перевірено без розбіжностей:** сутності й атрибути (`PRODUCT.stock_quantity`, `ORDER.status`, `ORDER.payment_status`, `ORDER.total_amount`, `ORDER_ITEM.unit_price`) відповідають `spec.md` (ERD); `Unpaid` при відмові відповідає EARS-05; `Pending` при створенні відповідає EARS-02.
 
 ---
+
+## Ітерація 5: рішення студента за варіантом (а)
+
+**Запит (зміст):** обрано варіант (а) — додати вимогу до `task-2`.
+
+**Результат:**
+- `task-2/README.md`: додано EARS-14 (відхилення захищеної операції без дійсної сесії, відповідь 401; визначення `USER.id` і `USER.role`). Вимога покриває `UC_CreateOrder`, `UC_Pay`, `UC_Review`, `UC_ManageStore`, `UC_ManageProduct`.
+- `task-2/trace-matrix.md`: рядок EARS-14 у розд. 1 і оновлено розд. 2 для п'яти UC.
+- `task-3/spec.md` і `sequence.md`: `validateUser()` тепер посилається на EARS-14 замість EARS-11. EARS-11 лишається за входом.
+
+**Зауваження:** `task-2/DEFENSE.md` не змінено. Зміна попередньої моделі фіксується в DEFENSE завдання 3 як свідоме оновлення вимог (методичка 3.1.6).
+
+---

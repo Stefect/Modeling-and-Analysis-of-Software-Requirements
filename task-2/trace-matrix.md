@@ -16,6 +16,7 @@
 | **EARS-11** | Event-driven | Автентифікація анонімного користувача за email і паролем | `UC_Auth` | `USER` | Повне |
 | **EARS-12** | Unwanted Behavior | Автоскасування `Pending` без оплати через 24 год із поверненням резерву | `UC_ExpireOrder`, `UC_Pay` | `ORDER`, `PRODUCT` | Повне |
 | **EARS-13** | Event-driven | Повторна оплата `Unpaid` із повторним резервом; відмова при нестачі товару | `UC_Pay`, `UC_CreateOrder` | `ORDER`, `PRODUCT`, `ORDER_ITEM` | Повне |
+| **EARS-14** | Unwanted Behavior | Відхилення запиту до захищеної операції без дійсної сесії (401) і перевірка `USER.id`, `USER.role` | `UC_CreateOrder`, `UC_Pay`, `UC_Review`, `UC_ManageStore`, `UC_ManageProduct` | `USER` | Повне |
 | **EARS-07** | Optional | Розрахунок міжнародної митної вартості та зборів (WHERE доставка за межі ринку) | *Відсутній* | *Відсутні* | **Out of Scope** |
 | **NFR-01** | Ubiquitous | Хешування паролів, без відкритого зберігання | `UC_Auth` | `USER` (`password_hash`) | Покрито NFR, перевірка: аудит коду/тест |
 | **NFR-02** | Ubiquitous | Передача даних лише через HTTPS (TLS 1.2+) | `UC_Auth`, `UC_CreateOrder`, `UC_Pay`, `UC_ManageStore` | Усі сутності (транспорт) | Покрито NFR, перевірка: конфігурація сервера |
@@ -47,13 +48,13 @@
 | `UC_Auth` | EARS-11 | NFR-01, NFR-02, NFR-03, NFR-04, NFR-10, NFR-11, NFR-12, NFR-15, NFR-16, NFR-17 |
 | `UC_Search` | EARS-01 | NFR-02, NFR-05, NFR-11, NFR-12, NFR-14, NFR-15, NFR-16, NFR-17 |
 | `UC_SearchCat` | EARS-01 | NFR-05, NFR-15, NFR-16 |
-| `UC_CreateOrder` | EARS-02, EARS-03, EARS-04, EARS-05 | NFR-02, NFR-06, NFR-07, NFR-08, NFR-10, NFR-11, NFR-12, NFR-14, NFR-15, NFR-16, NFR-17 |
+| `UC_CreateOrder` | EARS-02, EARS-03, EARS-04, EARS-05, EARS-14 | NFR-02, NFR-06, NFR-07, NFR-08, NFR-10, NFR-11, NFR-12, NFR-14, NFR-15, NFR-16, NFR-17 |
 | `UC_Snapshot` | EARS-02 | NFR-06, NFR-08 |
-| `UC_Pay` | EARS-04, EARS-05, EARS-12, EARS-13 | NFR-02, NFR-07, NFR-10 |
+| `UC_Pay` | EARS-04, EARS-05, EARS-12, EARS-13, EARS-14 | NFR-02, NFR-07, NFR-10 |
 | `UC_ExpireOrder` | EARS-12 | NFR-07, NFR-10 |
-| `UC_Review` | EARS-06 | NFR-04, NFR-11, NFR-15, NFR-16, NFR-17 |
-| `UC_ManageStore` | EARS-08, EARS-10 | NFR-02, NFR-11, NFR-13, NFR-15, NFR-16, NFR-17 |
-| `UC_ManageProduct` | EARS-09, EARS-10 | NFR-07, NFR-10, NFR-11, NFR-13, NFR-15, NFR-16, NFR-17 |
+| `UC_Review` | EARS-06, EARS-14 | NFR-04, NFR-11, NFR-15, NFR-16, NFR-17 |
+| `UC_ManageStore` | EARS-08, EARS-10, EARS-14 | NFR-02, NFR-11, NFR-13, NFR-15, NFR-16, NFR-17 |
+| `UC_ManageProduct` | EARS-09, EARS-10, EARS-14 | NFR-07, NFR-10, NFR-11, NFR-13, NFR-15, NFR-16, NFR-17 |
 
 **Непокриті вимоги:** немає. EARS-07 — Out of Scope (розд. 4). NFR-01..NFR-17 трасуються до UC і сутностей (розд. 1), але перевіряються не сценаріями Gherkin, а методами, зазначеними в колонці «Стан покриття». Пороги — у `docs/adr/0009-nfr-thresholds.md`.
 
