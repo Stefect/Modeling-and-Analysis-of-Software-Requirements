@@ -37,7 +37,7 @@ else Сесія дійсна (role = customer)
         OrderService -> Database : ORDER.status = Paid, payment_status = approved
       else Оплата відхилена
         PaymentGateway --> OrderService : declined
-        OrderService -> Database : Повернути залишок до PRODUCT.stock_quantity (EARS-05)
+        OrderService -> Database : Повернути залишок (EARS-05)
         OrderService -> Database : ORDER.status = Unpaid
       end
     end
