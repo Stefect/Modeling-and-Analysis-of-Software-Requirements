@@ -41,7 +41,7 @@ sequenceDiagram
                     OrderService->>Database: ORDER.status = Paid, payment_status = approved
                 else Оплата відхилена
                     PaymentGateway-->>OrderService: declined
-                    OrderService->>Database: Повернути PRODUCT.stock_quantity (скасування резерву, EARS-05)
+                    OrderService->>Database: Повернути залишок (EARS-05)
                     OrderService->>Database: ORDER.status = Unpaid
                 end
             end
