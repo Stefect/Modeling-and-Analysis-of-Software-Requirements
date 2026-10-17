@@ -299,7 +299,7 @@ Feature: Анонімний пошук і вхід (EARS-01, EARS-11)
 | **UC_SearchCat** | Фільтрувати за `CATEGORY` | `Anonymous`, `Customer` | `<<extend>>` | **Опціональний:** фільтр категорій розширює `UC_Search`. |
 | **UC_CreateOrder**| Оформити замовлення `ORDER` | `Customer` | Primary | Створення замовлення зі статусом `Pending`. |
 | **UC_Snapshot** | Зафіксувати ціну `unit_price`| System | `<<include>>` | **Обов'язковий:** фіксація ціни в `ORDER_ITEM`. |
-| **UC_Pay** | Оплатити через шлюз | `Payment Gateway`| `<<extend>>` | **Опціональний:** онлайн-оплата після створення. |
+| **UC_Pay** | Оплатити через шлюз | `Customer` (ініціює), `Payment Gateway` (обробляє транзакцію) | `<<extend>>` | **Опціональний:** онлайн-оплата після створення. |
 | **UC_ExpireOrder** | Автоскасувати неоплачене `ORDER` | `System Timer` | Primary (тригер часу) | Переведення `Pending` → `Cancelled` через 24 год (EARS-12). |
 | **UC_Review** | Залишити відгук `REVIEW` | `Customer` | Primary | Оцінка та коментар до товару (EARS-06). |
 | **UC_ManageStore**| Керувати магазином `STORE` | `Seller` | Primary | Створення та редагування профілю магазину (EARS-08, 10). |
@@ -373,6 +373,7 @@ flowchart TD
     Customer --> UC_Search
     Customer --> UC_SearchCat
     Customer --> UC_CreateOrder
+    Customer --> UC_Pay
     Customer --> UC_Review
 
     Seller --> UC_ManageStore
