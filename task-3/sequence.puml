@@ -1,4 +1,5 @@
 @startuml sequence
+' ТИМЧАСОВО: alt, opt, loop замінено на note з позначкою ×. Повна версія — у коміті 416d605.
 autonumber
 
 actor Customer
@@ -11,38 +12,26 @@ participant PaymentGateway
 
 Customer -> WebApp : Підтверджує замовлення
 WebApp -> UserService : validateUser(sessionToken)
-alt Сесія недійсна
-  UserService --> WebApp : Помилка 401
-  WebApp --> Customer : Потрібно увійти
-else Сесія дійсна (role = customer)
-  UserService --> WebApp : userId, role
-  WebApp -> OrderService : submitOrder(userId, cartItems)
-  OrderService -> CatalogService : getProductList(productIds)
-  CatalogService -> Database : Читання PRODUCT
-  Database --> CatalogService : price, stock_quantity
-  CatalogService --> OrderService : Товари з ціною і залишком
-  alt Недостатньо залишку
-    OrderService --> WebApp : Відмова, немає на складі
-    WebApp --> Customer : Товар недоступний
-  else Залишку достатньо
-    OrderService -> Database : Створити ORDER (status = Pending)
-    OrderService -> Database : Створити ORDER_ITEM з unit_price
-    loop Для кожної позиції ORDER_ITEM
-      OrderService -> Database : Зменшити PRODUCT.stock_quantity
-    end
-    opt Онлайн-оплата (UC_Pay, extend)
-      OrderService -> PaymentGateway : Списати total_amount
-      alt Оплата успішна
-        PaymentGateway --> OrderService : approved
-        OrderService -> Database : ORDER.status = Paid, payment_status = approved
-      else Оплата відхилена
-        PaymentGateway --> OrderService : declined
-        OrderService -> Database : Повернути залишок (EARS-05)
-        OrderService -> Database : ORDER.status = Unpaid
-      end
-    end
-    OrderService --> WebApp : orderId, статус
-    WebApp --> Customer : Замовлення створено
-  end
-end
+note over UserService, WebApp : × Сесія недійсна: помилка 401, потрібно увійти
+UserService --> WebApp : userId, role
+WebApp -> OrderService : submitOrder(userId, cartItems)
+OrderService -> CatalogService : getProductList(productIds)
+CatalogService -> Database : Читання PRODUCT
+Database --> CatalogService : price, stock_quantity
+CatalogService --> OrderService : Товари з ціною і залишком
+note over OrderService, WebApp : × Недостатньо залишку: відмова, ORDER не створюється
+OrderService -> Database : Створити ORDER (status = Pending)
+OrderService -> Database : Створити ORDER_ITEM з unit_price
+note over OrderService, Database : × Для кожної позиції ORDER_ITEM
+OrderService -> Database : Зменшити PRODUCT.stock_quantity
+note over OrderService, PaymentGateway : × Онлайн-оплата (UC_Pay, необов'язкова)
+OrderService -> PaymentGateway : Списати total_amount
+PaymentGateway --> OrderService : approved
+OrderService -> Database : ORDER.status = Paid, payment_status = approved
+note over OrderService, PaymentGateway : × Оплата відхилена
+PaymentGateway --> OrderService : declined
+OrderService -> Database : Повернути залишок (EARS-05)
+OrderService -> Database : ORDER.status = Unpaid
+OrderService --> WebApp : orderId, статус
+WebApp --> Customer : Замовлення створено
 @enduml
