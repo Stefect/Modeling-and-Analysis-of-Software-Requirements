@@ -1,8 +1,6 @@
 # Sequence-діаграма: оформлення замовлення (UC_CreateOrder)
 
-> **ТИМЧАСОВО:** блоки `alt`, `opt`, `loop` замінено на нотатки «×». Повна версія з гілками — у коміті `416d605`.
-
-Деталізує `task-3/spec.md`, розд. 3. Учасники — розд. 2; вимоги — EARS-02..05, EARS-14 (`task-2/README.md`).
+Деталізує `task-3/spec.md`, розд. 3. Учасники — розд. 2; вимоги — EARS-02..05, EARS-14 (`task-2/README.md`). Еталон PlantUML: `task-3/sequence.puml`.
 
 ```mermaid
 sequenceDiagram
@@ -15,32 +13,50 @@ sequenceDiagram
     participant Database
     participant PaymentGateway
 
-    Customer->>WebApp: Підтверджує замовлення
-    WebApp->>UserService: validateUser(sessionToken)
-    Note over UserService,WebApp: × Сесія недійсна: помилка 401, потрібно увійти
-    UserService-->>WebApp: userId, role
-    WebApp->>OrderService: submitOrder(userId, cartItems)
-    OrderService->>CatalogService: getProductList(productIds)
-    CatalogService->>Database: Читання PRODUCT
-    Database-->>CatalogService: price, stock_quantity
-    CatalogService-->>OrderService: Товари з ціною і залишком
-    Note over OrderService,WebApp: × Недостатньо залишку: відмова, ORDER не створюється
-    OrderService->>Database: Створити ORDER (status = Pending)
-    OrderService->>Database: Створити ORDER_ITEM з unit_price
-    Note over OrderService,Database: × Для кожної позиції ORDER_ITEM
-    OrderService->>Database: Зменшити PRODUCT.stock_quantity
-    Note over OrderService,PaymentGateway: × Онлайн-оплата (UC_Pay, необов'язкова)
-    OrderService->>PaymentGateway: Списати total_amount
-    PaymentGateway-->>OrderService: approved
-    OrderService->>Database: ORDER.status = Paid, payment_status = approved
-    Note over OrderService,PaymentGateway: × Оплата відхилена
-    PaymentGateway-->>OrderService: declined
-    OrderService->>Database: Повернути залишок (EARS-05)
-    OrderService->>Database: ORDER.status = Unpaid
-    OrderService-->>WebApp: orderId, статус
-    WebApp-->>Customer: Замовлення створено
+    Customer->>WebApp: Підтверджує замовлення (UC_CreateOrder)
+    WebApp->>UserService: validateUser(sessionToken) [EARS-14]
+    UserService->>Database: Читання USER (id, role)
+    Database-->>UserService: USER.role
+    alt Сесія недійсна або прострочена
+        UserService-->>WebApp: Помилка 401 [EARS-14]
+        WebApp-->>Customer: Потрібно увійти
+    else Сесія дійсна (role = customer)
+        UserService-->>WebApp: userId, role
+        WebApp->>OrderService: submitOrder(userId, cartItems)
+        OrderService->>CatalogService: getProductList(productIds)
+        CatalogService->>Database: Читання PRODUCT (price, stock_quantity)
+        Database-->>CatalogService: price, stock_quantity
+        CatalogService-->>OrderService: Товари з ціною і залишком
+        alt Недостатньо залишку [EARS-03]
+            OrderService-->>WebApp: Відмова, немає на складі
+            WebApp-->>Customer: Товар недоступний
+        else Залишку достатньо
+            OrderService->>Database: Створити ORDER (status = Pending) [EARS-02]
+            OrderService->>Database: Створити ORDER_ITEM з unit_price (include UC_Snapshot) [EARS-02]
+            loop Для кожної позиції ORDER_ITEM [EARS-03]
+                OrderService->>Database: Зменшити PRODUCT.stock_quantity на ORDER_ITEM.quantity
+            end
+            opt Онлайн-оплата (extend UC_Pay) [EARS-04]
+                OrderService->>PaymentGateway: charge(orderId, total_amount)
+                alt Оплата успішна
+                    PaymentGateway-->>OrderService: approved
+                    OrderService->>Database: ORDER.status = Paid, payment_status = approved
+                else Оплата відхилена [EARS-05]
+                    PaymentGateway-->>OrderService: declined
+                    OrderService->>Database: Повернути PRODUCT.stock_quantity (скасування резерву)
+                    OrderService->>Database: ORDER.status = Unpaid
+                end
+            end
+            OrderService-->>WebApp: orderId, статус
+            WebApp-->>Customer: Замовлення створено
+        end
+    end
 ```
 
 ## Легенда
-- «×» — місце, де в повній версії були `alt` (умовні гілки), `opt` (необов'язкова оплата) або `loop` (резерв по позиціях).
-- Еталон PlantUML: `task-3/sequence.puml` (також у тимчасовій версії).
+- `alt` / `else` — умовні гілки: сесія (EARS-14), залишок, результат оплати (EARS-05).
+- `opt` — онлайн-оплата необов'язкова (`<<extend>>` UC_Pay, EARS-04).
+- `loop` — резерв по кожній позиції (EARS-03).
+- `include UC_Snapshot` — знімок `unit_price` створюється в тому самому кроці, що й `ORDER_ITEM` (EARS-02). Включений UC виконується завжди, тому стоїть поза `opt`.
+- Пунктирна стрілка `-->>` — return-повідомлення.
+- Назви дій, а не внутрішні деталі: SQL і транзакції не показано (рівень моделі, а не реалізації).

@@ -1,5 +1,5 @@
 @startuml sequence
-' ТИМЧАСОВО: alt, opt, loop замінено на note з позначкою ×. Повна версія — у коміті 416d605.
+' Еталон для sequence.md (Mermaid). EARS у дужках квадратних, return — пунктирна стрілка.
 autonumber
 
 actor Customer
@@ -10,28 +10,42 @@ participant CatalogService
 database Database
 participant PaymentGateway
 
-Customer -> WebApp : Підтверджує замовлення
-WebApp -> UserService : validateUser(sessionToken)
-note over UserService, WebApp : × Сесія недійсна: помилка 401, потрібно увійти
-UserService --> WebApp : userId, role
-WebApp -> OrderService : submitOrder(userId, cartItems)
-OrderService -> CatalogService : getProductList(productIds)
-CatalogService -> Database : Читання PRODUCT
-Database --> CatalogService : price, stock_quantity
-CatalogService --> OrderService : Товари з ціною і залишком
-note over OrderService, WebApp : × Недостатньо залишку: відмова, ORDER не створюється
-OrderService -> Database : Створити ORDER (status = Pending)
-OrderService -> Database : Створити ORDER_ITEM з unit_price
-note over OrderService, Database : × Для кожної позиції ORDER_ITEM
-OrderService -> Database : Зменшити PRODUCT.stock_quantity
-note over OrderService, PaymentGateway : × Онлайн-оплата (UC_Pay, необов'язкова)
-OrderService -> PaymentGateway : Списати total_amount
-PaymentGateway --> OrderService : approved
-OrderService -> Database : ORDER.status = Paid, payment_status = approved
-note over OrderService, PaymentGateway : × Оплата відхилена
-PaymentGateway --> OrderService : declined
-OrderService -> Database : Повернути залишок (EARS-05)
-OrderService -> Database : ORDER.status = Unpaid
-OrderService --> WebApp : orderId, статус
-WebApp --> Customer : Замовлення створено
+Customer -> WebApp : Підтверджує замовлення (UC_CreateOrder)
+WebApp -> UserService : validateUser(sessionToken) [EARS-14]
+UserService -> Database : Читання USER (id, role)
+Database --> UserService : USER.role
+alt Сесія недійсна або прострочена
+  UserService --> WebApp : Помилка 401 [EARS-14]
+  WebApp --> Customer : Потрібно увійти
+else Сесія дійсна (role = customer)
+  UserService --> WebApp : userId, role
+  WebApp -> OrderService : submitOrder(userId, cartItems)
+  OrderService -> CatalogService : getProductList(productIds)
+  CatalogService -> Database : Читання PRODUCT (price, stock_quantity)
+  Database --> CatalogService : price, stock_quantity
+  CatalogService --> OrderService : Товари з ціною і залишком
+  alt Недостатньо залишку [EARS-03]
+    OrderService --> WebApp : Відмова, немає на складі
+    WebApp --> Customer : Товар недоступний
+  else Залишку достатньо
+    OrderService -> Database : Створити ORDER (status = Pending) [EARS-02]
+    OrderService -> Database : Створити ORDER_ITEM з unit_price (include UC_Snapshot) [EARS-02]
+    loop Для кожної позиції ORDER_ITEM [EARS-03]
+      OrderService -> Database : Зменшити PRODUCT.stock_quantity на ORDER_ITEM.quantity
+    end
+    opt Онлайн-оплата (extend UC_Pay) [EARS-04]
+      OrderService -> PaymentGateway : charge(orderId, total_amount)
+      alt Оплата успішна
+        PaymentGateway --> OrderService : approved
+        OrderService -> Database : ORDER.status = Paid, payment_status = approved
+      else Оплата відхилена [EARS-05]
+        PaymentGateway --> OrderService : declined
+        OrderService -> Database : Повернути PRODUCT.stock_quantity (скасування резерву)
+        OrderService -> Database : ORDER.status = Unpaid
+      end
+    end
+    OrderService --> WebApp : orderId, статус
+    WebApp --> Customer : Замовлення створено
+  end
+end
 @enduml
