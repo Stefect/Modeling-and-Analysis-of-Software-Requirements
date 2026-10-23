@@ -1,7 +1,7 @@
 # DEFENSE — Завдання 3: Взаємодія (Sequence Diagram)
 
 ## 1. Намір і критерії
-Sequence-діаграма деталізує `UC_CreateOrder` (актор `Customer`) з `task-2/`: основний потік, `<<include>>` `UC_Snapshot`, `<<extend>>` `UC_Pay`, перевірку сесії (EARS-14), гілки `alt` і опціональну оплату `opt`. Шість критеріїв — у `task-3/spec.md`, розд. 1.
+Дві sequence-діаграми (по одній на сценарій US-01 і US-02) деталізують `UC_CreateOrder` (актор `Customer`) з `task-2/`: основний потік, `<<include>>` `UC_Snapshot`, `<<extend>>` `UC_Pay`, перевірку сесії (EARS-14), гілки `alt` і опціональну оплату `opt`. Шість критеріїв — у `task-3/spec.md`, розд. 1.
 
 ## 2. Топ-3 розбіжності, які знайшов і виправив
 1. **`validateUser()` без вимоги в попередній моделі (головна).** EARS-11 описував лише вхід, а не перевірку вже наявної сесії для захищених операцій. Розбіжність між діаграмою і `task-2/README.md`. Виправлено: додано EARS-14 у `task-2/README.md`, рядок у `task-2/trace-matrix.md`, посилання в `spec.md` і діаграмі. Коміт `65159e2`. Рішення: `docs/adr/0010-session-check-ears-14.md`. Промпт: `ai/task-3-prompt-history.md`, ітерації 4–5.
@@ -26,4 +26,4 @@ Sequence-діаграма деталізує `UC_CreateOrder` (актор `Custo
 - **EARS і UC (Завдання 2):** кожен блок має посилання на EARS-02..05 або EARS-14. `UC_Snapshot` — `<<include>>` у тому самому кроці, що й `ORDER_ITEM`, поза `opt`. `UC_Pay` — `opt` (`<<extend>>`).
 - **Зміна попередньої моделі:** EARS-14 додано до `task-2/README.md` і `trace-matrix.md`. `task-2/DEFENSE.md` не змінено: зміна фіксується тут, як свідоме оновлення вимог (методичка 3.1.6).
 - **Закрите відкрите питання:** `UserService` читає `USER.role`, тепер це показано окремим повідомленням до `Database`.
-- **Рендер:** Mermaid у `sequence.md` перевірено на GitHub для повної версії: `alt`, `opt`, `loop`, return-повідомлення і EARS-посилання відображаються. PlantUML `sequence.puml` на GitHub показується як код, тому його рендер перевірено окремо (потрібен PlantUML-рендерер).
+- **Рендер:** Mermaid у `sequence.md` перевірено на GitHub для повної версії: `alt`, `opt`, `loop`, return-повідомлення і EARS-посилання відображаються. PlantUML `sequence.puml` на GitHub показується як код; його рендер перевірено локально PlantUML з `-charset UTF-8`.
