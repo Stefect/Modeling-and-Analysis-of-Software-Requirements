@@ -2,6 +2,7 @@
 
 * Статус: прийнято
 * Дата: 2026-10-23
+* Оновлено: частково замінено `docs/adr/0013-sequence-four-scenarios.md` (кількість діаграм і правила activation bars)
 * Контекст: Завдання 3 (`task-3/`), `task-3/sequence.md`, `task-3/sequence.puml`
 
 ## Context and Problem Statement
@@ -21,7 +22,7 @@
 * US-01: створення замовлення, `alt` сесії (EARS-14), `alt` залишку (EARS-03), `loop` резерву (EARS-03), `include UC_Snapshot` (EARS-02).
 * US-02: оплата, `opt` онлайн-оплати (EARS-04), `alt` approved/declined (EARS-04, EARS-05), `loop` повернення резерву (EARS-05).
 
-Учасники з ADR 0011 збережені. У діаграмі US-01 немає `PaymentGateway`, бо сценарій не містить оплати. Activation bars: `OrderService` і `Database` охоплюють фрагмент, в якому вони працюють у кількох гілках. `par` не використано, бо в обох сценаріях немає паралельних кроків.
+Учасники з ADR 0011 збережені. У діаграмі US-01 немає `PaymentGateway`, бо сценарій не містить оплати. Activation bars ставляться лише учасникам, які працюють у кількох гілках фрагмента: `OrderService` у US-01 і `OrderService` та `Database` у US-02. `Database` у US-01 працює лише в гілці успіху, тому bar не ставиться. `par` не використано, бо в обох сценаріях немає паралельних кроків.
 
 ### Consequences
 * Good: кожна діаграма трасується до одного сценарію Gherkin, а кроки мають посилання на EARS.

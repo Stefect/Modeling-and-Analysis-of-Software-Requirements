@@ -1,12 +1,19 @@
 # Sequence-діаграми за сценаріями (Завдання 3)
 
-Деталізують `task-3/spec.md`, розд. 3. Одна діаграма на один сценарій Gherkin з `task-2/README.md`, розд. 3:
-- **Діаграма 1 — US-01:** «Створення замовлення з Price Snapshot і резервуванням залишку» (UC_CreateOrder, `<<include>>` UC_Snapshot).
-- **Діаграма 2 — US-02:** «Онлайн-оплата як extend, успіх і відмова з поверненням резерву» (UC_Pay, `<<extend>>`).
+Деталізують `task-3/spec.md`. Одна діаграма на один Gherkin-сценарій з `task-2/README.md`, розд. 3. Учасники і сигнатури методів — за `docs/adr/0011-sequence-participants-split.md`. Розбиття на окремі діаграми — за `docs/adr/0013-sequence-four-scenarios.md`.
 
-Еталон PlantUML з тими самими повідомленнями: `task-3/sequence.puml`.
+Статус: 4 з 4.
 
-## Діаграма 1. US-01: створення замовлення
+| № | Сценарій (Gherkin, Завдання 2) | Вимоги | Комбінований фрагмент |
+|---|---|---|---|
+| S1 | US-01: «Створення замовлення з Price Snapshot і резервуванням залишку» | EARS-02, EARS-03, EARS-14 | `critical`, `loop` |
+| S2 | US-02: «Повторна оплата відхиляється, якщо товару немає на складі» | EARS-13, EARS-14 | `break` |
+| S3 | US-02: «Відмова платежу скасовує резерв» | EARS-04, EARS-05, EARS-14 | `critical`, `loop` |
+| S4 | US-02: «Оплата не обрана (extend не виконується)» | EARS-04, EARS-14 | `opt` |
+
+---
+
+## Діаграма 1. S1: успішне оформлення замовлення
 
 ```mermaid
 sequenceDiagram
@@ -18,40 +25,37 @@ sequenceDiagram
     participant CatalogService
     participant Database
 
-    Customer->>WebApp: confirmOrder(cartItems)
-    WebApp->>UserService: validateUser(sessionToken) [EARS-14]
-    UserService->>Database: findUser(userId)
-    Database-->>UserService: role
-    alt Сесія недійсна або прострочена [EARS-14]
-        UserService-->>WebApp: 401 Unauthorized
-        WebApp-->>Customer: loginRequired
-    else Сесія дійсна, role = customer
-        UserService-->>WebApp: userId, role
-        WebApp->>OrderService: createOrder(userId, cartItems)
-        activate OrderService
-        OrderService->>CatalogService: getProducts(productIds)
-        CatalogService->>Database: findProducts(productIds)
-        Database-->>CatalogService: price, stock_quantity
-        CatalogService-->>OrderService: products
-        activate Database
-        alt Недостатньо stock_quantity [EARS-03]
-            OrderService-->>WebApp: outOfStock
-            WebApp-->>Customer: outOfStock
-        else stock_quantity достатньо
-            OrderService->>Database: insertOrder(status = Pending) [EARS-02]
-            OrderService->>Database: insertOrderItems(unit_price snapshot) [EARS-02, include UC_Snapshot]
-            loop Для кожної позиції ORDER_ITEM [EARS-03]
-                OrderService->>Database: reserveStock(productId, quantity)
-            end
-            OrderService-->>WebApp: orderId, status = Pending
-            WebApp-->>Customer: orderCreated(orderId)
+    Customer->>+WebApp: confirmOrder(sessionToken, cartItems)
+    WebApp->>+UserService: validateSession(sessionToken)
+    UserService->>+Database: getSession(sessionToken)
+    Database-->>-UserService: userId
+    UserService->>+Database: getUserRole(userId)
+    Database-->>-UserService: role = 'customer'
+    UserService-->>-WebApp: userId, role = 'customer'
+    WebApp->>+OrderService: createOrder(userId, cartItems)
+    OrderService->>+CatalogService: getProductList(productIds)
+    CatalogService->>+Database: findProducts(productIds)
+    Database-->>-CatalogService: products(price, stock_quantity)
+    CatalogService-->>-OrderService: products(price, stock_quantity)
+    critical Транзакція створення замовлення
+        OrderService->>+Database: insertOrder(userId, totalAmount, 'Pending')
+        Database-->>-OrderService: orderId
+        OrderService->>+Database: insertOrderItems(orderId, items, unit_price)
+        Database-->>-OrderService: ok
+        loop для кожного ORDER_ITEM
+            OrderService->>+Database: reserveStock(productId, qty)
+            Database-->>-OrderService: reserved
         end
-        deactivate Database
-        deactivate OrderService
     end
+    OrderService-->>-WebApp: orderId, status = 'Pending'
+    WebApp-->>-Customer: orderId, status = 'Pending'
 ```
 
-## Діаграма 2. US-02: онлайн-оплата
+**Легенда.** `critical` об'єднує створення `ORDER` і `ORDER_ITEM` з резервуванням в одну транзакцію. `loop` резервує кожну позицію (EARS-03). `unit_price` записується тим самим `insertOrderItems` (EARS-02, include UC_Snapshot).
+
+---
+
+## Діаграма 2. S2: нестача залишку при повторній оплаті
 
 ```mermaid
 sequenceDiagram
@@ -60,47 +64,110 @@ sequenceDiagram
     participant WebApp
     participant UserService
     participant OrderService
+    participant CatalogService
     participant Database
-    participant PaymentGateway
 
-    Customer->>WebApp: payOrder(orderId)
-    WebApp->>UserService: validateUser(sessionToken) [EARS-14]
-    UserService->>Database: findUser(userId)
-    Database-->>UserService: role
-    UserService-->>WebApp: userId, role
-    WebApp->>OrderService: payOrder(orderId, userId)
-    activate OrderService
-    OrderService->>Database: findOrder(orderId)
-    Database-->>OrderService: status = Pending, total_amount
-    opt Онлайн-оплата обрана [EARS-04, extend UC_Pay]
-        OrderService->>PaymentGateway: charge(orderId, total_amount)
-        activate Database
-        alt Оплата approved [EARS-04]
-            PaymentGateway-->>OrderService: approved
-            OrderService->>Database: updateOrder(status = Paid, payment_status = approved)
-        else Оплата declined [EARS-05]
-            PaymentGateway-->>OrderService: declined
-            loop Для кожної позиції ORDER_ITEM [EARS-05]
-                OrderService->>Database: releaseStock(productId, quantity)
-            end
-            OrderService->>Database: updateOrder(status = Unpaid)
-        end
-        deactivate Database
+    Customer->>+WebApp: payOrder(sessionToken, orderId)
+    WebApp->>+UserService: validateSession(sessionToken)
+    UserService->>+Database: getSession(sessionToken)
+    Database-->>-UserService: userId
+    UserService->>+Database: getUserRole(userId)
+    Database-->>-UserService: role = 'customer'
+    UserService-->>-WebApp: userId, role = 'customer'
+    WebApp->>+OrderService: retryPayment(orderId, userId)
+    OrderService->>+Database: findOrder(orderId)
+    Database-->>-OrderService: status = 'Unpaid', items(productId, quantity)
+    OrderService->>+CatalogService: getProductList(productIds)
+    CatalogService->>+Database: findProducts(productIds)
+    Database-->>-CatalogService: products(stock_quantity)
+    CatalogService-->>-OrderService: products(stock_quantity)
+    break Недостатньо stock_quantity для ORDER_ITEM
+        OrderService-->>-WebApp: insufficientStock(productId)
+        WebApp-->>-Customer: retryRejected, status = 'Unpaid'
     end
-    OrderService-->>WebApp: paymentResult
-    deactivate OrderService
-    WebApp-->>Customer: orderStatus
 ```
 
-## Легенда
-- `alt` / `else` — гілки: сесія (EARS-14), залишок (EARS-03), результат оплати (EARS-04, EARS-05).
-- `opt` — онлайн-оплата необов'язкова. Якщо її не обрано, `Payment Gateway` не викликається, `ORDER` лишається `Pending` (сценарій «Оплата не обрана»).
-- `loop` — резерв по кожній позиції (EARS-03) і повернення резерву при відмові (EARS-05).
-- `include UC_Snapshot` — `unit_price` записується в тому самому кроці, що й `ORDER_ITEM`, поза `opt` (EARS-02).
-- `activate` / `deactivate`:
-  - Діаграма 1: `OrderService` і `Database` активні від початку `alt Недостатньо stock_quantity` до його кінця.
-  - Діаграма 2: `OrderService` активний на всьому виконанні `payOrder`; `Database` активний від початку `alt` (approved/declined) до його кінця всередині `opt`.
-- `par` не використано: у сценаріях US-01 і US-02 немає кроків, які виконуються паралельно. Кроки йдуть послідовно за логікою сесії, залишку та оплати.
-- Пунктирна стрілка `-->>` — return-повідомлення.
-- `PaymentGateway` відсутній на діаграмі 1: сценарій US-01 не містить оплати.
-- Не показано: повторну оплату `Unpaid` (EARS-13), автоскасування (EARS-12), SQL і транзакції. Це окремі сценарії або деталі реалізації.
+**Легенда.** `break` завершує сценарій, якщо `stock_quantity < ORDER_ITEM.quantity` (EARS-13). Запису в `Database` немає, `ORDER` лишається `Unpaid`, `PaymentGateway` не викликається.
+
+---
+
+## Діаграма 3. S3: відмова онлайн-оплати і скасування резерву
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Customer
+    participant WebApp
+    participant UserService
+    participant OrderService
+    participant PaymentGateway
+    participant Database
+
+    Customer->>+WebApp: payOrder(sessionToken, orderId)
+    WebApp->>+UserService: validateSession(sessionToken)
+    UserService->>+Database: getSession(sessionToken)
+    Database-->>-UserService: userId
+    UserService->>+Database: getUserRole(userId)
+    Database-->>-UserService: role = 'customer'
+    UserService-->>-WebApp: userId, role = 'customer'
+    WebApp->>+OrderService: payOrder(orderId, userId)
+    OrderService->>+Database: findOrder(orderId)
+    Database-->>-OrderService: status = 'Pending', total_amount, items(productId, quantity)
+    OrderService->>+PaymentGateway: charge(orderId, total_amount)
+    PaymentGateway-->>-OrderService: declined
+    critical Транзакція скасування резерву
+        loop для кожного ORDER_ITEM
+            OrderService->>+Database: releaseStock(productId, quantity)
+            Database-->>-OrderService: released
+        end
+        OrderService->>+Database: updateOrder(orderId, status = 'Unpaid', payment_status = 'declined')
+        Database-->>-OrderService: ok
+    end
+    OrderService-->>-WebApp: paymentResult = 'declined'
+    WebApp-->>-Customer: paymentResult = 'declined', status = 'Unpaid'
+```
+
+**Легенда.** `critical` містить повернення резерву і зміну статусу, щоб не було частково скасованого замовлення (EARS-05). `releaseStock` повертає `ORDER_ITEM.quantity` у `PRODUCT.stock_quantity`.
+
+---
+
+## Діаграма 4. S4: оформлення без онлайн-оплати
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Customer
+    participant WebApp
+    participant UserService
+    participant OrderService
+    participant PaymentGateway
+    participant Database
+
+    Customer->>+WebApp: continueWithoutPayment(sessionToken, orderId)
+    WebApp->>+UserService: validateSession(sessionToken)
+    UserService->>+Database: getSession(sessionToken)
+    Database-->>-UserService: userId
+    UserService->>+Database: getUserRole(userId)
+    Database-->>-UserService: role = 'customer'
+    UserService-->>-WebApp: userId, role = 'customer'
+    WebApp->>+OrderService: confirmWithoutPayment(orderId, userId)
+    OrderService->>+Database: findOrder(orderId)
+    Database-->>-OrderService: status = 'Pending', total_amount
+    opt Онлайн-оплата обрана (у цьому сценарії не виконується)
+        OrderService->>+PaymentGateway: charge(orderId, total_amount)
+        PaymentGateway-->>-OrderService: approved / declined
+    end
+    OrderService-->>-WebApp: orderId, status = 'Pending'
+    WebApp-->>-Customer: orderId, status = 'Pending'
+```
+
+**Легенда.** `opt` показує, що `PaymentGateway` викликається тільки за вибору онлайн-оплати. У цьому сценарії гілка не виконується, `ORDER` лишається `Pending` без змін у `Database`.
+
+---
+
+## Загальні правила
+
+- Кожен виклик має пару `->>+` / `-->>-`. Учасник активний від свого першого виклику до повернення результату.
+- Перевірка ролі йде через `Database`: `getSession` і `getUserRole`. Роль не береться без звернення до БД.
+- Прозових назв немає. Усі повідомлення є сигнатурами методів.
+- Не показано: SQL, індекси, деталі транзакцій поза `critical`, SMS/email.
