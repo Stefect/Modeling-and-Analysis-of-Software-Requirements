@@ -1,6 +1,8 @@
-' Еталон для sequence.md (Mermaid). Шість окремих діаграм: по одній на Gherkin-сценарій (task-2/README.md, розд. 3), S1–S6.
-' ->+ / -->- — activate / deactivate, як у Mermaid ->>+ / -->>-.
-' Пунктирна --> без деактивації — повернення в гілці alt/break, коли учасник закривається один раз після фрагмента (обмеження Mermaid, див. sequence.md).
+' Еталон для sequence.md (Mermaid). Вісім окремих діаграм: по одній на Gherkin-сценарій (task-2/README.md, розд. 3), S1–S8.
+' Активації записано явними командами activate / deactivate після повідомлення (еквівалент ->>+ / -->>- у Mermaid).
+' deactivate X після фрагмента — закриття активації один раз після alt/break (обмеження Mermaid, див. sequence.md).
+' Пунктирна --> без деактивації — повернення всередині гілки alt/break.
+' Перевірено PlantUML 1.2023.13 (-tsvg): 8 з 8 діаграм без синтаксичних помилок.
 
 @startuml s1-create-order
 autonumber
@@ -12,39 +14,59 @@ participant OrderService
 participant CatalogService
 database Database
 
-Customer ->+ WebApp : confirmOrder(sessionToken, cartItems)
-WebApp ->+ UserService : validateSession(sessionToken)
-UserService ->+ Database : getSession(sessionToken)
-Database -->- UserService : userId або не знайдено
-UserService ->+ Database : getUserRole(userId)
-Database -->- UserService : role = 'customer'
-UserService -->- WebApp : userId, role = 'customer' (для недійсної сесії роль не повертається)
+Customer -> WebApp : confirmOrder(sessionToken, cartItems)
+activate WebApp
+WebApp -> UserService : validateSession(sessionToken)
+activate UserService
+UserService -> Database : getSession(sessionToken)
+activate Database
+Database --> UserService : userId або не знайдено
+deactivate Database
+UserService -> Database : getUserRole(userId)
+activate Database
+Database --> UserService : role = 'customer'
+deactivate Database
+UserService --> WebApp : userId, role = 'customer' (для недійсної сесії роль не повертається)
+deactivate UserService
 alt Сесія недійсна або прострочена (EARS-14)
   WebApp --> Customer : 401, ORDER не створено
 else Сесія дійсна
-  WebApp ->+ OrderService : createOrder(userId, cartItems)
-  OrderService ->+ CatalogService : getProductList(productIds)
-  CatalogService ->+ Database : findProducts(productIds)
-  Database -->- CatalogService : products(price, stock_quantity)
-  CatalogService -->- OrderService : products(price, stock_quantity)
+  WebApp -> OrderService : createOrder(userId, cartItems)
+  activate OrderService
+  OrderService -> CatalogService : getProductList(productIds)
+  activate CatalogService
+  CatalogService -> Database : findProducts(productIds)
+  activate Database
+  Database --> CatalogService : products(price, stock_quantity)
+  deactivate Database
+  CatalogService --> OrderService : products(price, stock_quantity)
+  deactivate CatalogService
   alt stock_quantity < ORDER_ITEM.quantity (EARS-03)
     OrderService --> WebApp : insufficientStock(productId)
     WebApp --> Customer : insufficientStock(productId), ORDER не створено
   else Залишку достатньо
     critical Транзакція створення замовлення
-      OrderService ->+ Database : insertOrder(userId, totalAmount, 'Pending')
-      Database -->- OrderService : orderId
-      OrderService ->+ Database : insertOrderItems(orderId, items, unit_price)
-      Database -->- OrderService : ok
+      OrderService -> Database : insertOrder(userId, totalAmount, 'Pending')
+      activate Database
+      Database --> OrderService : orderId
+      deactivate Database
+      OrderService -> Database : insertOrderItems(orderId, items, unit_price)
+      activate Database
+      Database --> OrderService : ok
+      deactivate Database
       loop для кожного ORDER_ITEM
-        OrderService ->+ Database : reserveStock(productId, qty)
-        Database -->- OrderService : reserved
+        OrderService -> Database : reserveStock(productId, qty)
+        activate Database
+        Database --> OrderService : reserved
+        deactivate Database
       end
     end
-    OrderService -->- WebApp : orderId, status = 'Pending'
-    WebApp -->- Customer : orderId, status = 'Pending'
+    OrderService --> WebApp : orderId, status = 'Pending'
+    WebApp --> Customer : orderId, status = 'Pending'
   end
+  deactivate OrderService
 end
+deactivate WebApp
 @enduml
 
 @startuml s2-retry-shortage
@@ -58,24 +80,40 @@ participant OrderService
 participant CatalogService
 database Database
 
-Customer ->+ WebApp : payOrder(sessionToken, orderId)
-WebApp ->+ UserService : validateSession(sessionToken)
-UserService ->+ Database : getSession(sessionToken)
-Database -->- UserService : userId
-UserService ->+ Database : getUserRole(userId)
-Database -->- UserService : role = 'customer'
-UserService -->- WebApp : userId, role = 'customer'
-WebApp ->+ OrderService : retryPayment(orderId, userId)
-OrderService ->+ Database : findOrder(orderId)
-Database -->- OrderService : status = 'Unpaid', items(productId, quantity)
-OrderService ->+ CatalogService : getProductList(productIds)
-CatalogService ->+ Database : findProducts(productIds)
-Database -->- CatalogService : products(stock_quantity)
-CatalogService -->- OrderService : products(stock_quantity)
+Customer -> WebApp : payOrder(sessionToken, orderId)
+activate WebApp
+WebApp -> UserService : validateSession(sessionToken)
+activate UserService
+UserService -> Database : getSession(sessionToken)
+activate Database
+Database --> UserService : userId
+deactivate Database
+UserService -> Database : getUserRole(userId)
+activate Database
+Database --> UserService : role = 'customer'
+deactivate Database
+UserService --> WebApp : userId, role = 'customer'
+deactivate UserService
+WebApp -> OrderService : retryPayment(orderId, userId)
+activate OrderService
+OrderService -> Database : findOrder(orderId)
+activate Database
+Database --> OrderService : status = 'Unpaid', items(productId, quantity)
+deactivate Database
+OrderService -> CatalogService : getProductList(productIds)
+activate CatalogService
+CatalogService -> Database : findProducts(productIds)
+activate Database
+Database --> CatalogService : products(stock_quantity)
+deactivate Database
+CatalogService --> OrderService : products(stock_quantity)
+deactivate CatalogService
 break Недостатньо stock_quantity для ORDER_ITEM
-  OrderService -->- WebApp : insufficientStock(productId)
-  WebApp -->- Customer : retryRejected, status = 'Unpaid'
+  OrderService --> WebApp : insufficientStock(productId)
+  WebApp --> Customer : retryRejected, status = 'Unpaid'
 end
+deactivate OrderService
+deactivate WebApp
 @enduml
 
 @startuml s3-payment-declined
@@ -89,28 +127,46 @@ participant OrderService
 participant PaymentGateway
 database Database
 
-Customer ->+ WebApp : payOrder(sessionToken, orderId)
-WebApp ->+ UserService : validateSession(sessionToken)
-UserService ->+ Database : getSession(sessionToken)
-Database -->- UserService : userId
-UserService ->+ Database : getUserRole(userId)
-Database -->- UserService : role = 'customer'
-UserService -->- WebApp : userId, role = 'customer'
-WebApp ->+ OrderService : payOrder(orderId, userId)
-OrderService ->+ Database : findOrder(orderId)
-Database -->- OrderService : status = 'Pending', total_amount, items(productId, quantity)
-OrderService ->+ PaymentGateway : charge(orderId, total_amount)
-PaymentGateway -->- OrderService : declined
+Customer -> WebApp : payOrder(sessionToken, orderId)
+activate WebApp
+WebApp -> UserService : validateSession(sessionToken)
+activate UserService
+UserService -> Database : getSession(sessionToken)
+activate Database
+Database --> UserService : userId
+deactivate Database
+UserService -> Database : getUserRole(userId)
+activate Database
+Database --> UserService : role = 'customer'
+deactivate Database
+UserService --> WebApp : userId, role = 'customer'
+deactivate UserService
+WebApp -> OrderService : payOrder(orderId, userId)
+activate OrderService
+OrderService -> Database : findOrder(orderId)
+activate Database
+Database --> OrderService : status = 'Pending', total_amount, items(productId, quantity)
+deactivate Database
+OrderService -> PaymentGateway : charge(orderId, total_amount)
+activate PaymentGateway
+PaymentGateway --> OrderService : declined
+deactivate PaymentGateway
 critical Транзакція скасування резерву
   loop для кожного ORDER_ITEM
-    OrderService ->+ Database : releaseStock(productId, quantity)
-    Database -->- OrderService : released
+    OrderService -> Database : releaseStock(productId, quantity)
+    activate Database
+    Database --> OrderService : released
+    deactivate Database
   end
-  OrderService ->+ Database : updateOrder(orderId, status = 'Unpaid', payment_status = 'declined')
-  Database -->- OrderService : ok
+  OrderService -> Database : updateOrder(orderId, status = 'Unpaid', payment_status = 'declined')
+  activate Database
+  Database --> OrderService : ok
+  deactivate Database
 end
-OrderService -->- WebApp : paymentResult = 'declined'
-WebApp -->- Customer : paymentResult = 'declined', status = 'Unpaid'
+OrderService --> WebApp : paymentResult = 'declined'
+deactivate OrderService
+WebApp --> Customer : paymentResult = 'declined', status = 'Unpaid'
+deactivate WebApp
 @enduml
 
 @startuml s4-no-payment
@@ -124,22 +180,36 @@ participant OrderService
 participant PaymentGateway
 database Database
 
-Customer ->+ WebApp : continueWithoutPayment(sessionToken, orderId)
-WebApp ->+ UserService : validateSession(sessionToken)
-UserService ->+ Database : getSession(sessionToken)
-Database -->- UserService : userId
-UserService ->+ Database : getUserRole(userId)
-Database -->- UserService : role = 'customer'
-UserService -->- WebApp : userId, role = 'customer'
-WebApp ->+ OrderService : confirmWithoutPayment(orderId, userId)
-OrderService ->+ Database : findOrder(orderId)
-Database -->- OrderService : status = 'Pending', total_amount
+Customer -> WebApp : continueWithoutPayment(sessionToken, orderId)
+activate WebApp
+WebApp -> UserService : validateSession(sessionToken)
+activate UserService
+UserService -> Database : getSession(sessionToken)
+activate Database
+Database --> UserService : userId
+deactivate Database
+UserService -> Database : getUserRole(userId)
+activate Database
+Database --> UserService : role = 'customer'
+deactivate Database
+UserService --> WebApp : userId, role = 'customer'
+deactivate UserService
+WebApp -> OrderService : confirmWithoutPayment(orderId, userId)
+activate OrderService
+OrderService -> Database : findOrder(orderId)
+activate Database
+Database --> OrderService : status = 'Pending', total_amount
+deactivate Database
 opt Онлайн-оплата обрана (у цьому сценарії не виконується)
-  OrderService ->+ PaymentGateway : charge(orderId, total_amount)
-  PaymentGateway -->- OrderService : approved / declined
+  OrderService -> PaymentGateway : charge(orderId, total_amount)
+  activate PaymentGateway
+  PaymentGateway --> OrderService : approved / declined
+  deactivate PaymentGateway
 end
-OrderService -->- WebApp : orderId, status = 'Pending'
-WebApp -->- Customer : orderId, status = 'Pending'
+OrderService --> WebApp : orderId, status = 'Pending'
+deactivate OrderService
+WebApp --> Customer : orderId, status = 'Pending'
+deactivate WebApp
 @enduml
 
 @startuml s5-payment-approved
@@ -153,35 +223,55 @@ participant OrderService
 participant PaymentGateway
 database Database
 
-Customer ->+ WebApp : payOrder(sessionToken, orderId)
-WebApp ->+ UserService : validateSession(sessionToken)
-UserService ->+ Database : getSession(sessionToken)
-Database -->- UserService : userId
-UserService ->+ Database : getUserRole(userId)
-Database -->- UserService : role = 'customer'
-UserService -->- WebApp : userId, role = 'customer'
-WebApp ->+ OrderService : payOrder(orderId, userId)
-OrderService ->+ Database : findOrder(orderId)
-Database -->- OrderService : status = 'Pending', total_amount, items(productId, quantity)
+Customer -> WebApp : payOrder(sessionToken, orderId)
+activate WebApp
+WebApp -> UserService : validateSession(sessionToken)
+activate UserService
+UserService -> Database : getSession(sessionToken)
+activate Database
+Database --> UserService : userId
+deactivate Database
+UserService -> Database : getUserRole(userId)
+activate Database
+Database --> UserService : role = 'customer'
+deactivate Database
+UserService --> WebApp : userId, role = 'customer'
+deactivate UserService
+WebApp -> OrderService : payOrder(orderId, userId)
+activate OrderService
+OrderService -> Database : findOrder(orderId)
+activate Database
+Database --> OrderService : status = 'Pending', total_amount, items(productId, quantity)
+deactivate Database
 opt Онлайн-оплата обрана (UC_Pay, extend)
-  OrderService ->+ PaymentGateway : charge(orderId, total_amount)
-  PaymentGateway -->- OrderService : approved / declined
+  OrderService -> PaymentGateway : charge(orderId, total_amount)
+  activate PaymentGateway
+  PaymentGateway --> OrderService : approved / declined
+  deactivate PaymentGateway
   alt Платіж схвалено (approved)
-    OrderService ->+ Database : updateOrder(orderId, status = 'Paid', payment_status = 'approved')
-    Database -->- OrderService : ok
+    OrderService -> Database : updateOrder(orderId, status = 'Paid', payment_status = 'approved')
+    activate Database
+    Database --> OrderService : ok
+    deactivate Database
   else Платіж відхилено (declined), як у S3
     critical Транзакція скасування резерву
       loop для кожного ORDER_ITEM
-        OrderService ->+ Database : releaseStock(productId, quantity)
-        Database -->- OrderService : released
+        OrderService -> Database : releaseStock(productId, quantity)
+        activate Database
+        Database --> OrderService : released
+        deactivate Database
       end
-      OrderService ->+ Database : updateOrder(orderId, status = 'Unpaid', payment_status = 'declined')
-      Database -->- OrderService : ok
+      OrderService -> Database : updateOrder(orderId, status = 'Unpaid', payment_status = 'declined')
+      activate Database
+      Database --> OrderService : ok
+      deactivate Database
     end
   end
 end
-OrderService -->- WebApp : paymentResult = 'approved' / 'declined'
-WebApp -->- Customer : paymentResult, status = 'Paid' / 'Unpaid'
+OrderService --> WebApp : paymentResult = 'approved' / 'declined'
+deactivate OrderService
+WebApp --> Customer : paymentResult, status = 'Paid' / 'Unpaid'
+deactivate WebApp
 @enduml
 
 @startuml s6-shortage-at-checkout
@@ -195,20 +285,169 @@ participant OrderService
 participant CatalogService
 database Database
 
-Customer ->+ WebApp : confirmOrder(sessionToken, cartItems)
-WebApp ->+ UserService : validateSession(sessionToken)
-UserService ->+ Database : getSession(sessionToken)
-Database -->- UserService : userId
-UserService ->+ Database : getUserRole(userId)
-Database -->- UserService : role = 'customer'
-UserService -->- WebApp : userId, role = 'customer'
-WebApp ->+ OrderService : createOrder(userId, cartItems)
-OrderService ->+ CatalogService : getProductList(productIds)
-CatalogService ->+ Database : findProducts(productIds)
-Database -->- CatalogService : products(price, stock_quantity)
-CatalogService -->- OrderService : products(price, stock_quantity)
+Customer -> WebApp : confirmOrder(sessionToken, cartItems)
+activate WebApp
+WebApp -> UserService : validateSession(sessionToken)
+activate UserService
+UserService -> Database : getSession(sessionToken)
+activate Database
+Database --> UserService : userId
+deactivate Database
+UserService -> Database : getUserRole(userId)
+activate Database
+Database --> UserService : role = 'customer'
+deactivate Database
+UserService --> WebApp : userId, role = 'customer'
+deactivate UserService
+WebApp -> OrderService : createOrder(userId, cartItems)
+activate OrderService
+OrderService -> CatalogService : getProductList(productIds)
+activate CatalogService
+CatalogService -> Database : findProducts(productIds)
+activate Database
+Database --> CatalogService : products(price, stock_quantity)
+deactivate Database
+CatalogService --> OrderService : products(price, stock_quantity)
+deactivate CatalogService
 break Недостатньо stock_quantity для ORDER_ITEM.quantity (EARS-03)
-  OrderService -->- WebApp : insufficientStock(productId)
-  WebApp -->- Customer : insufficientStock(productId), ORDER не створено
+  OrderService --> WebApp : insufficientStock(productId)
+  WebApp --> Customer : insufficientStock(productId), ORDER не створено
 end
+deactivate OrderService
+deactivate WebApp
+@enduml
+
+@startuml s7-price-snapshot
+
+autonumber
+
+actor Seller
+actor Customer
+participant WebApp
+participant UserService
+participant OrderService
+participant CatalogService
+database Database
+
+Seller -> WebApp : updatePrice(sessionToken, productId, price = 600)
+activate WebApp
+WebApp -> UserService : validateSession(sessionToken) (EARS-14)
+activate UserService
+UserService -> Database : getSession(sessionToken)
+activate Database
+Database --> UserService : userId
+deactivate Database
+UserService -> Database : getUserRole(userId)
+activate Database
+Database --> UserService : role = 'seller'
+deactivate Database
+UserService --> WebApp : userId, role = 'seller'
+deactivate UserService
+alt Роль seller, власник товару (EARS-09)
+  WebApp -> CatalogService : updatePrice(productId, price)
+  activate CatalogService
+  CatalogService -> Database : updateProductPrice(productId, price = 600)
+  activate Database
+  Database --> CatalogService : ok
+  deactivate Database
+  CatalogService --> WebApp : ok
+  deactivate CatalogService
+  WebApp --> Seller : ціну змінено
+else Роль не seller або товар чужий
+  WebApp --> Seller : 403, PRODUCT не змінено
+end
+deactivate WebApp
+Customer -> WebApp : viewOrder(sessionToken, orderId)
+activate WebApp
+WebApp -> OrderService : getOrder(orderId)
+activate OrderService
+OrderService -> Database : findOrderItems(orderId)
+activate Database
+Database --> OrderService : items(unit_price = 500)
+deactivate Database
+OrderService --> WebApp : items(unit_price = 500)
+deactivate OrderService
+WebApp --> Customer : unit_price = 500 UAH
+deactivate WebApp
+@enduml
+
+@startuml s8-retry-with-restock
+
+autonumber
+
+actor Customer
+participant WebApp
+participant UserService
+participant OrderService
+participant CatalogService
+participant PaymentGateway
+database Database
+
+Customer -> WebApp : payOrder(sessionToken, orderId)
+activate WebApp
+WebApp -> UserService : validateSession(sessionToken)
+activate UserService
+UserService -> Database : getSession(sessionToken)
+activate Database
+Database --> UserService : userId
+deactivate Database
+UserService -> Database : getUserRole(userId)
+activate Database
+Database --> UserService : role = 'customer'
+deactivate Database
+UserService --> WebApp : userId, role = 'customer'
+deactivate UserService
+WebApp -> OrderService : retryPayment(orderId, userId)
+activate OrderService
+OrderService -> Database : findOrder(orderId)
+activate Database
+Database --> OrderService : status = 'Unpaid', items(productId, quantity)
+deactivate Database
+OrderService -> CatalogService : getProductList(productIds)
+activate CatalogService
+CatalogService -> Database : findProducts(productIds)
+activate Database
+Database --> CatalogService : products(stock_quantity >= quantity)
+deactivate Database
+CatalogService --> OrderService : products(stock_quantity)
+deactivate CatalogService
+critical Транзакція повторного резерву (EARS-13)
+  loop для кожного ORDER_ITEM
+    OrderService -> Database : reserveStock(productId, quantity)
+    activate Database
+    Database --> OrderService : reserved
+    deactivate Database
+  end
+  OrderService -> Database : updateOrder(orderId, status = 'Pending')
+  activate Database
+  Database --> OrderService : ok
+  deactivate Database
+end
+OrderService -> PaymentGateway : charge(orderId, total_amount)
+activate PaymentGateway
+PaymentGateway --> OrderService : approved / declined
+deactivate PaymentGateway
+alt Платіж схвалено (approved)
+  OrderService -> Database : updateOrder(orderId, status = 'Paid', payment_status = 'approved')
+  activate Database
+  Database --> OrderService : ok
+  deactivate Database
+else Платіж відхилено (declined), як у S3
+  critical Транзакція скасування резерву
+    loop для кожного ORDER_ITEM
+      OrderService -> Database : releaseStock(productId, quantity)
+      activate Database
+      Database --> OrderService : released
+      deactivate Database
+    end
+    OrderService -> Database : updateOrder(orderId, status = 'Unpaid', payment_status = 'declined')
+    activate Database
+    Database --> OrderService : ok
+    deactivate Database
+  end
+end
+OrderService --> WebApp : paymentResult = 'approved' / 'declined'
+deactivate OrderService
+WebApp --> Customer : paymentResult, status = 'Paid' / 'Unpaid'
+deactivate WebApp
 @enduml
