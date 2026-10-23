@@ -1,5 +1,7 @@
-@startuml sequence
-' Еталон для sequence.md (Mermaid). EARS у дужках квадратних, return — пунктирна стрілка.
+' Еталон для sequence.md (Mermaid). Дві діаграми: US-01 і US-02.
+' EARS у квадратних дужках, return — пунктирна стрілка, activate/deactivate — як у Mermaid.
+
+@startuml us-01-create-order
 autonumber
 
 actor Customer
@@ -8,44 +10,75 @@ participant UserService
 participant OrderService
 participant CatalogService
 database Database
+
+Customer -> WebApp : confirmOrder(cartItems)
+WebApp -> UserService : validateUser(sessionToken) [EARS-14]
+UserService -> Database : findUser(userId)
+Database --> UserService : role
+alt Сесія недійсна або прострочена [EARS-14]
+  UserService --> WebApp : 401 Unauthorized
+  WebApp --> Customer : loginRequired
+else Сесія дійсна, role = customer
+  UserService --> WebApp : userId, role
+  WebApp -> OrderService : createOrder(userId, cartItems)
+  activate OrderService
+  OrderService -> CatalogService : getProducts(productIds)
+  CatalogService -> Database : findProducts(productIds)
+  Database --> CatalogService : price, stock_quantity
+  CatalogService --> OrderService : products
+  activate Database
+  alt Недостатньо stock_quantity [EARS-03]
+    OrderService --> WebApp : outOfStock
+    WebApp --> Customer : outOfStock
+  else stock_quantity достатньо
+    OrderService -> Database : insertOrder(status = Pending) [EARS-02]
+    OrderService -> Database : insertOrderItems(unit_price snapshot) [EARS-02, include UC_Snapshot]
+    loop Для кожної позиції ORDER_ITEM [EARS-03]
+      OrderService -> Database : reserveStock(productId, quantity)
+    end
+    OrderService --> WebApp : orderId, status = Pending
+    WebApp --> Customer : orderCreated(orderId)
+  end
+  deactivate Database
+  deactivate OrderService
+end
+@enduml
+
+@startuml us-02-pay-order
+autonumber
+
+actor Customer
+participant WebApp
+participant UserService
+participant OrderService
+database Database
 participant PaymentGateway
 
-Customer -> WebApp : Підтверджує замовлення (UC_CreateOrder)
+Customer -> WebApp : payOrder(orderId)
 WebApp -> UserService : validateUser(sessionToken) [EARS-14]
-UserService -> Database : Читання USER (id, role)
-Database --> UserService : USER.role
-alt Сесія недійсна або прострочена
-  UserService --> WebApp : Помилка 401 [EARS-14]
-  WebApp --> Customer : Потрібно увійти
-else Сесія дійсна (role = customer)
-  UserService --> WebApp : userId, role
-  WebApp -> OrderService : submitOrder(userId, cartItems)
-  OrderService -> CatalogService : getProductList(productIds)
-  CatalogService -> Database : Читання PRODUCT (price, stock_quantity)
-  Database --> CatalogService : price, stock_quantity
-  CatalogService --> OrderService : Товари з ціною і залишком
-  alt Недостатньо залишку [EARS-03]
-    OrderService --> WebApp : Відмова, немає на складі
-    WebApp --> Customer : Товар недоступний
-  else Залишку достатньо
-    OrderService -> Database : Створити ORDER (status = Pending) [EARS-02]
-    OrderService -> Database : Створити ORDER_ITEM з unit_price (include UC_Snapshot) [EARS-02]
-    loop Для кожної позиції ORDER_ITEM [EARS-03]
-      OrderService -> Database : Зменшити PRODUCT.stock_quantity на ORDER_ITEM.quantity
+UserService -> Database : findUser(userId)
+Database --> UserService : role
+UserService --> WebApp : userId, role
+WebApp -> OrderService : payOrder(orderId, userId)
+activate OrderService
+OrderService -> Database : findOrder(orderId)
+Database --> OrderService : status = Pending, total_amount
+opt Онлайн-оплата обрана [EARS-04, extend UC_Pay]
+  OrderService -> PaymentGateway : charge(orderId, total_amount)
+  activate Database
+  alt Оплата approved [EARS-04]
+    PaymentGateway --> OrderService : approved
+    OrderService -> Database : updateOrder(status = Paid, payment_status = approved)
+  else Оплата declined [EARS-05]
+    PaymentGateway --> OrderService : declined
+    loop Для кожної позиції ORDER_ITEM [EARS-05]
+      OrderService -> Database : releaseStock(productId, quantity)
     end
-    opt Онлайн-оплата (extend UC_Pay) [EARS-04]
-      OrderService -> PaymentGateway : charge(orderId, total_amount)
-      alt Оплата успішна
-        PaymentGateway --> OrderService : approved
-        OrderService -> Database : ORDER.status = Paid, payment_status = approved
-      else Оплата відхилена [EARS-05]
-        PaymentGateway --> OrderService : declined
-        OrderService -> Database : Повернути PRODUCT.stock_quantity (скасування резерву)
-        OrderService -> Database : ORDER.status = Unpaid
-      end
-    end
-    OrderService --> WebApp : orderId, статус
-    WebApp --> Customer : Замовлення створено
+    OrderService -> Database : updateOrder(status = Unpaid)
   end
+  deactivate Database
 end
+OrderService --> WebApp : paymentResult
+deactivate OrderService
+WebApp --> Customer : orderStatus
 @enduml
