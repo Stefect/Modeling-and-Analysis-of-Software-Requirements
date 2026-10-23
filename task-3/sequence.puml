@@ -1,5 +1,6 @@
-' Еталон для sequence.md (Mermaid). Чотири окремі діаграми: по одній на Gherkin-сценарій (task-2/README.md, розд. 3).
+' Еталон для sequence.md (Mermaid). Шість окремих діаграм: по одній на Gherkin-сценарій (task-2/README.md, розд. 3), S1–S6.
 ' ->+ / -->- — activate / deactivate, як у Mermaid ->>+ / -->>-.
+' Пунктирна --> без деактивації — повернення в гілці alt/break, коли учасник закривається один раз після фрагмента (обмеження Mermaid, див. sequence.md).
 
 @startuml s1-create-order
 autonumber
@@ -14,30 +15,40 @@ database Database
 Customer ->+ WebApp : confirmOrder(sessionToken, cartItems)
 WebApp ->+ UserService : validateSession(sessionToken)
 UserService ->+ Database : getSession(sessionToken)
-Database -->- UserService : userId
+Database -->- UserService : userId або не знайдено
 UserService ->+ Database : getUserRole(userId)
 Database -->- UserService : role = 'customer'
-UserService -->- WebApp : userId, role = 'customer'
-WebApp ->+ OrderService : createOrder(userId, cartItems)
-OrderService ->+ CatalogService : getProductList(productIds)
-CatalogService ->+ Database : findProducts(productIds)
-Database -->- CatalogService : products(price, stock_quantity)
-CatalogService -->- OrderService : products(price, stock_quantity)
-critical Транзакція створення замовлення
-  OrderService ->+ Database : insertOrder(userId, totalAmount, 'Pending')
-  Database -->- OrderService : orderId
-  OrderService ->+ Database : insertOrderItems(orderId, items, unit_price)
-  Database -->- OrderService : ok
-  loop для кожного ORDER_ITEM
-    OrderService ->+ Database : reserveStock(productId, qty)
-    Database -->- OrderService : reserved
+UserService -->- WebApp : userId, role = 'customer' (для недійсної сесії роль не повертається)
+alt Сесія недійсна або прострочена (EARS-14)
+  WebApp --> Customer : 401, ORDER не створено
+else Сесія дійсна
+  WebApp ->+ OrderService : createOrder(userId, cartItems)
+  OrderService ->+ CatalogService : getProductList(productIds)
+  CatalogService ->+ Database : findProducts(productIds)
+  Database -->- CatalogService : products(price, stock_quantity)
+  CatalogService -->- OrderService : products(price, stock_quantity)
+  alt stock_quantity < ORDER_ITEM.quantity (EARS-03)
+    OrderService --> WebApp : insufficientStock(productId)
+    WebApp --> Customer : insufficientStock(productId), ORDER не створено
+  else Залишку достатньо
+    critical Транзакція створення замовлення
+      OrderService ->+ Database : insertOrder(userId, totalAmount, 'Pending')
+      Database -->- OrderService : orderId
+      OrderService ->+ Database : insertOrderItems(orderId, items, unit_price)
+      Database -->- OrderService : ok
+      loop для кожного ORDER_ITEM
+        OrderService ->+ Database : reserveStock(productId, qty)
+        Database -->- OrderService : reserved
+      end
+    end
+    OrderService -->- WebApp : orderId, status = 'Pending'
+    WebApp -->- Customer : orderId, status = 'Pending'
   end
 end
-OrderService -->- WebApp : orderId, status = 'Pending'
-WebApp -->- Customer : orderId, status = 'Pending'
 @enduml
 
 @startuml s2-retry-shortage
+
 autonumber
 
 actor Customer
@@ -68,6 +79,7 @@ end
 @enduml
 
 @startuml s3-payment-declined
+
 autonumber
 
 actor Customer
@@ -102,6 +114,7 @@ WebApp -->- Customer : paymentResult = 'declined', status = 'Unpaid'
 @enduml
 
 @startuml s4-no-payment
+
 autonumber
 
 actor Customer
@@ -127,4 +140,75 @@ opt Онлайн-оплата обрана (у цьому сценарії не 
 end
 OrderService -->- WebApp : orderId, status = 'Pending'
 WebApp -->- Customer : orderId, status = 'Pending'
+@enduml
+
+@startuml s5-payment-approved
+
+autonumber
+
+actor Customer
+participant WebApp
+participant UserService
+participant OrderService
+participant PaymentGateway
+database Database
+
+Customer ->+ WebApp : payOrder(sessionToken, orderId)
+WebApp ->+ UserService : validateSession(sessionToken)
+UserService ->+ Database : getSession(sessionToken)
+Database -->- UserService : userId
+UserService ->+ Database : getUserRole(userId)
+Database -->- UserService : role = 'customer'
+UserService -->- WebApp : userId, role = 'customer'
+WebApp ->+ OrderService : payOrder(orderId, userId)
+OrderService ->+ Database : findOrder(orderId)
+Database -->- OrderService : status = 'Pending', total_amount, items(productId, quantity)
+opt Онлайн-оплата обрана (UC_Pay, extend)
+  OrderService ->+ PaymentGateway : charge(orderId, total_amount)
+  PaymentGateway -->- OrderService : approved / declined
+  alt Платіж схвалено (approved)
+    OrderService ->+ Database : updateOrder(orderId, status = 'Paid', payment_status = 'approved')
+    Database -->- OrderService : ok
+  else Платіж відхилено (declined), як у S3
+    critical Транзакція скасування резерву
+      loop для кожного ORDER_ITEM
+        OrderService ->+ Database : releaseStock(productId, quantity)
+        Database -->- OrderService : released
+      end
+      OrderService ->+ Database : updateOrder(orderId, status = 'Unpaid', payment_status = 'declined')
+      Database -->- OrderService : ok
+    end
+  end
+end
+OrderService -->- WebApp : paymentResult = 'approved' / 'declined'
+WebApp -->- Customer : paymentResult, status = 'Paid' / 'Unpaid'
+@enduml
+
+@startuml s6-shortage-at-checkout
+
+autonumber
+
+actor Customer
+participant WebApp
+participant UserService
+participant OrderService
+participant CatalogService
+database Database
+
+Customer ->+ WebApp : confirmOrder(sessionToken, cartItems)
+WebApp ->+ UserService : validateSession(sessionToken)
+UserService ->+ Database : getSession(sessionToken)
+Database -->- UserService : userId
+UserService ->+ Database : getUserRole(userId)
+Database -->- UserService : role = 'customer'
+UserService -->- WebApp : userId, role = 'customer'
+WebApp ->+ OrderService : createOrder(userId, cartItems)
+OrderService ->+ CatalogService : getProductList(productIds)
+CatalogService ->+ Database : findProducts(productIds)
+Database -->- CatalogService : products(price, stock_quantity)
+CatalogService -->- OrderService : products(price, stock_quantity)
+break Недостатньо stock_quantity для ORDER_ITEM.quantity (EARS-03)
+  OrderService -->- WebApp : insufficientStock(productId)
+  WebApp -->- Customer : insufficientStock(productId), ORDER не створено
+end
 @enduml
