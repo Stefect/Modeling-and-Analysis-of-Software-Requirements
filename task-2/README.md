@@ -125,6 +125,15 @@ Feature: Оформлення замовлення з фіксацією цін�
     Given існує ORDER_ITEM з unit_price = 500 UAH
     When продавець змінює PRODUCT.price на 600 UAH
     Then ORDER_ITEM.unit_price залишається 500 UAH
+
+  Scenario: Оформлення з нестачею залишку
+    Given покупець Customer авторизований у системі (USER.id заповнений)
+    And у кошику є товар PRODUCT з stock_quantity < ORDER_ITEM.quantity
+    When покупець натискає "Оформити замовлення" (UC_CreateOrder)
+    Then ORDER не створюється
+    And ORDER_ITEM не створюється
+    And PRODUCT.stock_quantity не змінюється
+    And покупець отримує повідомлення про недостатню кількість товару
 ```
 
 **Acceptance:** після оформлення ціна в чеку не змінюється, навіть якщо продавець оновив прайс.

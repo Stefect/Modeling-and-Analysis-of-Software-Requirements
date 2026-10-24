@@ -1,45 +1,34 @@
 # Специфікація взаємодії: оформлення замовлення (Завдання 3)
 
-## 1. Намір і критерії
-Описати динаміку ключового сценарію `UC_CreateOrder` (актор `Customer`) у вигляді sequence-діаграми: хто з ким взаємодіє, у якому порядку, з якими поверненнями і гілками (`alt`/`opt`/`loop`). Діаграма деталізує UC із Завдання 2 і має збігатися з ERD Завдання 1.
+## 1. Намір та критерії
+Ця специфікація деталізує динаміку виконання Use Case `UC_CreateOrder` (актор `Customer`) та пов'язаних з ним процесів із Завдання 2. Взаємодія моделюється за допомогою 8 окремих sequence-діаграм (S1–S8), кожна з яких покриває конкретний сценарій Gherkin з `task-2/README.md`. Модель узгоджена з EARS-вимогами Завдання 2 та сутностями за текстом Завдання 1 (`USER`, `PRODUCT`, `ORDER`, `ORDER_ITEM`).
 
 Критерії (фіксуються комітом):
-1. Дві діаграми за сценаріями Gherkin: US-01 покриває `UC_CreateOrder` з `<<include>>` `UC_Snapshot` (поза `opt`); US-02 покриває `UC_Pay` як `<<extend>>` (всередині `opt`).
-2. Кожен учасник є актором, компонентом, що читає або пише сутності ERD (`USER`, `PRODUCT`, `ORDER`, `ORDER_ITEM`), або зовнішньою системою (`Payment Gateway`). Компоненти дозволені методичкою (завдання: «основні компоненти/об'єкти»).
-3. Кожне повідомлення-виклик має реалістичну назву і посилання на EARS (`EARS-02..05`, `EARS-14`); return-повідомлення позначено пунктирною стрілкою.
-4. Є щонайменше 3 гілки: помилка автентифікації і недостатній залишок (US-01), відмова оплати (US-02); є `opt` (онлайн-оплата, US-02) і `loop` (резерв по позиціях, US-01 і US-02).
-5. Mermaid-блоки відображаються на GitHub; еталонна UML-версія — `sequence.puml` (PlantUML). Обидві версії містять однаковий потік у кожній діаграмі.
-6. Статуси і залишки відповідають EARS: після успішної оплати `ORDER.status = Paid`, `payment_status = approved` (US-02); при відмові оплати — два окремі повідомлення: повернення резерву (EARS-05) і `ORDER.status = Unpaid`.
+1. **Покриття сценаріїв:** Створено 8 окремих sequence-діаграм (S1–S8) для сценаріїв US-01 та US-02. Автоматичне скасування через 24 години (`UC_ExpireOrder`) свідомо винесено за межі цієї роботи, оскільки воно ініціюється фоновим таймером системи, а не користувачем.
+2. **Учасники:** Актор `Customer`, клієнтський застосунок `WebApp`, сервіси (`UserService`, `CatalogService`, `OrderService`), сховище `Database` (таблиці `USER`, `PRODUCT`, `ORDER`, `ORDER_ITEM`) та зовнішня система `PaymentGateway`.
+3. **Строгий формалізм викликів та EARS-мітки:** Усі повідомлення є сигнатурами методів із параметрами. Опис дій прозою виключено. Кожен виклик між сервісами містить посилання на відповідну вимогу EARS (`EARS-02..05`, `EARS-13`, `EARS-14`); внутрішні виклики до `Database` реалізують ці вимоги на рівні збереження даних.
+4. **Комбіновані фрагменти:** У кожній діаграмі присутній щонайменше один фрагмент: `alt` (гілки авторизації/оплати), `opt` (опціональна онлайн-оплата), `loop` (ітерація по позиціях кошика), `break` (достроковий вихід при недостачі товару) або `critical` (атомарні транзакції БД).
+5. **Схема деактивації та обмеження Mermaid:** Виклики створюють активацію (`->>+`). Через особливості лінійної деактивації Mermaid, повернення результатів (наприклад, `OrderService -->> WebApp` у S1) та повернення помилок у гілках `alt`/`break` (401 у S1, `insufficientStock` у S1 та S6) виконуються пунктирними стрілками, а деактивація сервісів явно закривається через `deactivate` після відповідного фрагмента.
+6. **Відповідність EARS:** Створено еталонні версії у Mermaid (`sequence.md`) та PlantUML (`sequence.puml`). При успішній оплаті статуси змінюються викликом `Database.updateOrder(orderId, status = 'Paid', payment_status = 'approved')` (S5). При відмові оплати надсилаються два окремих виклики: `Database.releaseStock(productId, qty)` у циклі `loop` та `Database.updateOrder(orderId, status = 'Unpaid', payment_status = 'declined')` (S3, S5).
 
-## 2. Учасники
-| Учасник | Тип | Відповідність моделі |
+## 2. Учасники взаємодії
+| Учасник | Тип | Роль та відповідність моделі |
 | :--- | :--- | :--- |
-| `Customer` | Актор | Нащадок `User` (Завдання 2) |
-| `WebApp` | Компонент UI | Клієнтський застосунок (поза ERD) |
-| `OrderService` | Сервіс | Логіка `UC_CreateOrder`, `UC_Snapshot` |
-| `UserService` | Сервіс | Перевірка сесії і ролі, читає `USER` |
-| `CatalogService` | Сервіс | Читання `PRODUCT` (у цьому сценарії `CATEGORY` не читається) |
-| `Database` | Сховище | Таблиці `USER`, `PRODUCT`, `ORDER`, `ORDER_ITEM` |
-| `PaymentGateway` | Зовнішня система | `Payment Gateway` (Завдання 2) |
+| `Customer` | Актор | Користувач, нащадок `User` (Завдання 2) |
+| `WebApp` | Компонент UI | Клієнтський веб-інтерфейс (поза ERD) |
+| `UserService` | Сервіс | Аутентифікація, перевірка сесій та ролей (читає `USER`) |
+| `CatalogService` | Сервіс | Перевірка ціни та залишків (читає `PRODUCT`) |
+| `OrderService` | Сервіс | Бізнес-логіка створення замовлень, знімків цін та резерву |
+| `Database` | Сховище | Реляційна БД (таблиці `USER`, `PRODUCT`, `ORDER`, `ORDER_ITEM`) |
+| `PaymentGateway` | Зовнішня система | Еквайринг для онлайн-оплати (`Payment Gateway`) |
 
-## 3. Ключові кроки сценаріїв
-Кроки 1–6 і 8 — US-01 (діаграма 1). Крок 7 — US-02 (діаграма 2).
-1. `Customer` → `WebApp`: відкриває кошик і підтверджує замовлення.
-2. `WebApp` → `UserService`: `validateUser(sessionToken)` [EARS-14]. `UserService` → `Database`: читання `USER.id`, `USER.role`. Гілка `alt`: сесія недійсна або прострочена — відмова 401, без створення `ORDER`.
-3. `OrderService` → `CatalogService`: `getProductList(productIds)` — актуальні `PRODUCT.price` і `stock_quantity`.
-4. `alt`: якщо `stock_quantity < ORDER_ITEM.quantity` — відмова, `ORDER` не створюється [EARS-03].
-5. `OrderService` → `Database`: створює `ORDER` (`status = Pending`) і `ORDER_ITEM` з `unit_price` [EARS-02, `<<include>>` UC_Snapshot].
-6. `loop` по кожній позиції: `PRODUCT.stock_quantity -= ORDER_ITEM.quantity` [EARS-03].
-7. `opt`: онлайн-оплата — `PaymentGateway.charge(orderId, total_amount)` [EARS-04, `<<extend>>` UC_Pay].
-   - `alt`: успіх → `ORDER.status = Paid`, `ORDER.payment_status = approved` (`task-2/README.md`, US-02).
-   - `alt`: відмова → окремо повернення резерву, потім `ORDER.status = Unpaid` [EARS-05].
-8. `OrderService` → `WebApp`: повертає номер замовлення і статус.
+## 3. Основний потік та виконання сценаріїв
+1. **Ініціалізація та перевірка сесії (EARS-14):** `Customer` надсилає `WebApp.confirmOrder(sessionToken, cartItems)`. `WebApp` звертається до `UserService.validateSession(sessionToken)`. `UserService` викликає `Database.getSession(sessionToken)` та `Database.getUserRole(userId)`. При недійсній сесії повертається відмова 401.
+2. **Отримання актуальних даних (UC_Snapshot, EARS-02):** `OrderService` через `CatalogService.getProductList(productIds)` запитує з `Database.findProducts(productIds)` актуальні ціни та `stock_quantity`.
+3. **Перевірка залишків (EARS-03):** У гілці `alt`: якщо `stock_quantity < ORDER_ITEM.quantity`, повертається відмова `insufficientStock(productId)` і створення замовлення переривається.
+4. **Резервування та транзакційність (EARS-03):** У блоці `critical` `OrderService` виконує виклики `Database.insertOrder(userId, totalAmount, 'Pending')` та `Database.insertOrderItems(orderId, items, unit_price)`. Далі в циклі `loop` для кожної позиції викликається `Database.reserveStock(productId, qty)`.
+5. **Онлайн-оплата (UC_Pay, EARS-04, EARS-05):** У блоці `opt` виконується виклик `PaymentGateway.charge(orderId, total_amount)`. При успіху `OrderService` викликає `Database.updateOrder(orderId, status = 'Paid', payment_status = 'approved')`. При відмові у транзакційному блоці `critical` викликається `Database.releaseStock(productId, qty)` для кожної позиції, після чого `OrderService` викликає `Database.updateOrder(orderId, status = 'Unpaid', payment_status = 'declined')`.
 
-## 4. Межі
-- Автоскасування через 24 год (EARS-12) у діаграму не входить: це окремий сценарій `System Timer`, його можна додати пізніше.
-- Оплата не є обов'язковою: гілка `opt` позначає, що замовлення створюється і без неї (статус `Pending`).
-- Ім'я `getBookList()` із методички — приклад з іншої предметної області. Тут відповідний метод — `getProductList()`, зміну зафіксовано в `docs/adr/0011-sequence-participants-split.md`.
-
-## 5. Відомі ризики
-- Повторна оплата `Unpaid` — EARS-13; на діаграмі не показано (окремий сценарій).
-- Атомарність резерву (транзакція БД) — деталь реалізації, не моделі.
+## 4. Обмеження та межі (Out of Scope)
+- Автоматичне скасування замовлень через 24 години (EARS-12) виконується окремим фоновим демоном `System Timer` і не входить до даного Use Case.
+- Сценарій S7 демонструє вплив виклику `CatalogService.updatePrice(...)` продавцем на вже створене замовлення: фіксований `ORDER_ITEM.unit_price` не змінюється при зміні ціни товару в каталозі.
