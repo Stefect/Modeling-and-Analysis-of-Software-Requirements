@@ -17,7 +17,7 @@
 Детальний аналіз варіантів реалізації формальної моделі (State Diagram vs Activity Diagram) зафіксовано у [../docs/adr/0015-activity-diagram-with-fork-join.md](../docs/adr/0015-activity-diagram-with-fork-join.md), а вибір Outbox Pattern — у [../docs/adr/0014-outbox-after-commit-email.md](../docs/adr/0014-outbox-after-commit-email.md).
 
 ## 4. Результати перевірки критеріїв та узгодженості
-* **Перевірка синтаксису (Відтворюваність):** Синтаксичну коректність Mermaid-коду перевірено автоматичним скриптом у сесії AI. Перевірку можна відтворити за допомогою команди: `npx @mermaid-js/mermaid-cli -i task-4/activity.md`.
+* **Перевірка синтаксису (Відтворюваність):** Синтаксичну коректність Mermaid-коду перевірено у сесії AI шляхом експорту блоку та запуску валідатора: node -e "const fs=require('fs'), m=fs.readFileSync('task-4/activity.md','utf8').match(/\``mermaid([\s\S]*?)```/); fs.writeFileSync('temp.mmdc', m[1]);" && npx @mermaid-js/mermaid-cli -i temp.mmdc && rm temp.mmdc.
 * **Ручний аудит переходів:** Автором роботи проведено огляд та трасування шляхів на Activity-діаграмі. Підтверджено, що всі альтернативні та основні потоки мають логічне завершення (вузли STOP, UNP, PEND), а тупикові стани відсутні.
 * **Узгодженість ролей та NFR:** Назви swimlanes у `activity.md` повністю відповідають специфікації `spec.md`. Вимога EARS-16 узгоджена з NFR-16 (мова сповіщень — українська).
 * **Обмеження перевірки:** Візуальний рендер діаграми перевірено в інтерфейсі VS Code / GitHub у гілці PR.
