@@ -45,13 +45,15 @@ flowchart TB
     end
 
     STOP((кінець))
+    UNP((Unpaid: кінець процесу, повтор оплати — UC_RetryPayment))
+    PEND((Pending: кінець процесу, автоскасування — UC_ExpireOrder))
 
     START --> C1 --> W1
     W1 -- ні --> W2 --> C3
     W1 -- так --> O1 --> O2
     O2 -- ні --> O3 --> C3
     O2 -- так --> O4 --> C2
-    C2 -- ні --> O11 --> C3
+    C2 -- ні --> PEND
     C2 -- так --> O10 --> P1 --> P2
     P2 -- approved --> O5
     O5 --> O6 --> O8
@@ -62,5 +64,6 @@ flowchart TB
     R4 -- спроба < 4 --> R2
     R4 -- вичерпано (спроба ≥ 4) --> R5 --> C3
     P2 -- declined --> O9 --> O11
+    O9 --> UNP
     C3 --> STOP
 ```
