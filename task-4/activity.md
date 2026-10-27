@@ -3,7 +3,6 @@
 Доріжки: `Customer`, `WebApp`, `OrderService` (включно з фоновим Outbox Relay), `PaymentGateway`.
 Стани `ORDER` позначено в мітках вузлів: `Pending` (створення), `Paid` (успішна оплата), `Unpaid` (відмова оплати). Стан `Cancelled` поза цією діаграмою (EARS-12, лише з `Pending`).
 Поза межами цієї діаграми: повторна оплата з `Unpaid` (UC_RetryPayment, EARS-13), повернення коштів, повтори запитів до шлюзу при тайм-ауті.
-
 ```mermaid
 flowchart TB
     START((старт))
@@ -24,6 +23,7 @@ flowchart TB
         O2{stock_quantity ≥ ORDER_ITEM.quantity?}
         O3[[Відмова insufficientStock]]
         O4[Створити ORDER status = Pending, ORDER_ITEM, резерв]
+        O10[Перенаправити на PaymentGateway]
         subgraph TX["Транзакція оплати (атомарна)"]
             O5(( fork ))
             O6[Database.updateOrder status = Paid]
@@ -35,7 +35,7 @@ flowchart TB
         R1[Relay: зчитати запис outbox після коміту]
         R2[Надіслати email покупцю]
         R3{Доставлено?}
-        R4[Повтор: +1, +5, +15 хв, разом 4 спроби]
+        R4[Зафіксувати спробу +1]
         R5[[status = FAILED, журнал, DLQ]]
     end
 
@@ -52,14 +52,15 @@ flowchart TB
     O2 -- ні --> O3 --> C3
     O2 -- так --> O4 --> C2
     C2 -- ні --> O11 --> C3
-    C2 -- так --> P1 --> P2
+    C2 -- так --> O10 --> P1 --> P2
     P2 -- approved --> O5
     O5 --> O6 --> O8
     O5 --> O7 --> O8
     O8 --> R1 --> R2 --> R3
     R3 -- так --> C3
-    R3 -- ні --> R4 --> R2
-    R4 -- вичерпано --> R5 --> STOP
+    R3 -- ні --> R4
+    R4 -- спроба < 4 --> R2
+    R4 -- вичерпано (спроба ≥ 4) --> R5 --> C3
     P2 -- declined --> O9 --> O11
     C3 --> STOP
 ```
