@@ -22,7 +22,7 @@
 * **Alt-4 (Відмова в оплаті):** Якщо `PaymentGateway` повертає статус `declined`, `OrderService` повертає резерв товару на склад і переводить замовлення у стан `Unpaid` (згідно з EARS-05).
 
 ## 3. Прийняті архітектурні рішення
-* **Форма моделювання:** Activity-діаграма зі swimlanes (`Customer`, `WebApp`, `OrderService`, `PaymentGateway`).
+* **Форма моделювання:** Activity-діаграма зі swimlanes (`Customer`, `WebApp`, `OrderService`, `PaymentGateway`). Деталізація рішення наведена в `../docs/adr/0015-activity-diagram-with-fork-join.md`.
 * **Атомарна транзакція (Fork/Join):** При отриманні статус-коду `approved` від `PaymentGateway` `OrderService` виконує в одній ACID-транзакції дві дії: `ORDER.status = Paid` та `insertOutbox(OrderPaidEvent)`.
 * **Асинхронне сповіщення та Ідемпотентність:** Фоновий воркер `Relay` (компонент `OrderService`) зчитує `outbox` та надсилає email Покупцю після коміту транзакції. Запобігання дублюванню сповіщень реалізується на основі ключа `OrderPaidEvent.id`, якщо поштовий сервіс підтримує ідемпотентну відправку.
 
