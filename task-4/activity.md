@@ -8,45 +8,45 @@ flowchart TB
     START((старт))
 
     subgraph CUST["Customer"]
-        C1([Натиснути «Оформити замовлення»])
-        C2{Обрано онлайн-оплату?}
-        C3([Переглянути статус замовлення])
+        C1([Оформити замовлення])
+        C2{Онлайн-оплата?}
+        C3([Переглянути статус])
     end
 
     subgraph WEB["WebApp"]
-        W1{Сесія дійсна? EARS-14}
-        W2[[Відповідь 401]]
+        W1{Сесія дійсна?<br/>EARS-14}
+        W2[[401 Unauthorized]]
     end
 
     subgraph ORD["OrderService"]
-        O1[Прочитати ціни та залишки UC_Snapshot]
-        O2{stock_quantity ≥ ORDER_ITEM.quantity?}
-        O3[[Відмова insufficientStock]]
-        O4[Створити ORDER status = Pending, ORDER_ITEM, резерв]
-        O10[Перенаправити на PaymentGateway]
-        subgraph TX["Транзакція оплати (атомарна)"]
-            O5(( fork ))
-            O6[Database.updateOrder status = Paid]
-            O7[Database.insertOutbox OrderPaidEvent]
-            O8(( join: коміт ))
+        O1[Прочитати ціни<br/>та залишки]
+        O2{Товар є<br/>на складі?}
+        O3[[insufficientStock]]
+        O4[Створити ORDER<br/>status = Pending]
+        O10[Передати на оплату]
+        subgraph TX["Транзакція оплати"]
+            O5((fork))
+            O6[ORDER.status<br/>= Paid]
+            O7[insert outbox<br/>OrderPaidEvent]
+            O8((join: коміт))
         end
-        O9[Database.updateOrder status = Unpaid і releaseStock в одній транзакції]
-        O11[[Відповідь: статус замовлення]]
-        R1[Relay: зчитати запис outbox після коміту]
-        R2[Надіслати email покупцю]
+        O9[status = Unpaid<br/>резерв знято]
+        O11[[Статус замовлення]]
+        R1[Relay: читати outbox]
+        R2[Надіслати email]
         R3{Доставлено?}
-        R4[Зафіксувати спробу +1]
-        R5[[status = FAILED, журнал, DLQ]]
+        R4[Спроба +1]
+        R5[[FAILED, DLQ]]
     end
 
     subgraph PAY["PaymentGateway"]
-        P1[charge orderId, total_amount]
-        P2{approved?}
+        P1[Списати кошти]
+        P2{Схвалено?}
     end
 
     STOP((кінець))
-    UNP((Unpaid: кінець процесу, повтор оплати — UC_RetryPayment))
-    PEND((Pending: кінець процесу, автоскасування — UC_ExpireOrder))
+    UNP((Unpaid))
+    PEND((Pending))
 
     START --> C1 --> W1
     W1 -- ні --> W2 --> C3
@@ -62,7 +62,7 @@ flowchart TB
     R3 -- так --> C3
     R3 -- ні --> R4
     R4 -- спроба < 4 --> R2
-    R4 -- вичерпано (спроба ≥ 4) --> R5 --> C3
+    R4 -- спроба ≥ 4 --> R5 --> C3
     P2 -- declined --> O9 --> O11
     O11 --> C3
     O9 --> UNP
