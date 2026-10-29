@@ -1,12 +1,12 @@
 # Activity-діаграма: оформлення та оплата замовлення
 
-Діаграма розбита на чотири доріжки, кожна у власному блоці. Перехід між доріжками позначено вузлами `→ Доріжка: дія` (вихід) і `← Доріжка: дія` (вхід).
+Діаграма подана п'ятьма інлайн-блоками в порядку виконання процесу. Перехід між блоками позначено вузлами `→ Доріжка: дія` (вихід) і `← Доріжка: дія` (вхід). Блоки 3 і 5 належать одній доріжці `OrderService`, але розділені етапами: створення замовлення та фіксація оплати.
 
 Доріжки: `Customer`, `WebApp`, `OrderService` (включно з фоновим Outbox Relay), `PaymentGateway`.
 Стани `ORDER` позначено в мітках вузлів: `Pending` (створення), `Paid` (успішна оплата), `Unpaid` (відмова оплати). Стан `Cancelled` поза цією діаграмою (EARS-12, лише з `Pending`).
 Поза межами цієї діаграми: повторна оплата з `Unpaid` (UC_RetryPayment, EARS-13), повернення коштів, повтори запитів до шлюзу при тайм-ауті.
 
-### Доріжка Customer
+### Крок 1. Customer: оформлення
 
 ```mermaid
 flowchart TB
@@ -25,7 +25,7 @@ flowchart TB
     C3 --> STOP((кінець))
 ```
 
-### Доріжка WebApp
+### Крок 2. WebApp: перевірка сесії
 
 ```mermaid
 flowchart TB
@@ -35,7 +35,7 @@ flowchart TB
     W1 -- так --> W1out[[→ OrderService: Прочитати ціни та залишки]]
 ```
 
-### Доріжка OrderService
+### Крок 3. OrderService: створення замовлення
 
 ```mermaid
 flowchart TB
@@ -48,7 +48,22 @@ flowchart TB
 
     O10in[[← Customer: Онлайн-оплата = так]] --> O10[Передати на оплату]
     O10 --> O10out[[→ PaymentGateway: Списати кошти]]
+```
 
+### Крок 4. PaymentGateway: списання
+
+```mermaid
+flowchart TB
+    P_in[[← OrderService: Передати на оплату]] --> P1[Списати кошти]
+    P1 --> P2{Схвалено?}
+    P2 -- approved --> P2ok[[→ OrderService: approved]]
+    P2 -- declined --> P2no[[→ OrderService: declined]]
+```
+
+### Крок 5. OrderService: фіксація оплати, сповіщення, відмова
+
+```mermaid
+flowchart TB
     P_ok[[← PaymentGateway: approved]] --> O5((fork))
     O5 --> O6[ORDER.status<br/>= Paid]
     O5 --> O7[insert outbox<br/>OrderPaidEvent]
@@ -67,14 +82,4 @@ flowchart TB
     O9 --> O11[[Статус замовлення]]
     O11 --> O11out[[→ Customer: Переглянути статус]]
     O9 --> UNP((Unpaid))
-```
-
-### Доріжка PaymentGateway
-
-```mermaid
-flowchart TB
-    P_in[[← OrderService: Передати на оплату]] --> P1[Списати кошти]
-    P1 --> P2{Схвалено?}
-    P2 -- approved --> P2ok[[→ OrderService: approved]]
-    P2 -- declined --> P2no[[→ OrderService: declined]]
 ```
