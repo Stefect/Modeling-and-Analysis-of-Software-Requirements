@@ -1,69 +1,97 @@
 # Activity-діаграма: оформлення та оплата замовлення
 
+Діаграма подана сьома інлайн-блоками в порядку виконання процесу. Кожен блок описує один етап. Перехід між блоками позначено вузлами `→ Доріжка: дія` (вихід) і `← Доріжка: дія` (вхід).
+
 Доріжки: `Customer`, `WebApp`, `OrderService` (включно з фоновим Outbox Relay), `PaymentGateway`.
 Стани `ORDER` позначено в мітках вузлів: `Pending` (створення), `Paid` (успішна оплата), `Unpaid` (відмова оплати). Стан `Cancelled` поза цією діаграмою (EARS-12, лише з `Pending`).
 Поза межами цієї діаграми: повторна оплата з `Unpaid` (UC_RetryPayment, EARS-13), повернення коштів, повтори запитів до шлюзу при тайм-ауті.
+
+### Крок 1. Customer: оформлення
+
 ```mermaid
 flowchart TB
-    START((старт))
+    START((старт)) --> C1([Оформити замовлення])
+    C1 --> C1out[[→ WebApp: перевірка сесії]]
 
-    subgraph CUST["Customer"]
-        C1([Натиснути «Оформити замовлення»])
-        C2{Обрано онлайн-оплату?}
-        C3([Переглянути статус замовлення])
-    end
+    C2in[[← OrderService: ORDER створено, Pending]] --> C2{Онлайн-оплата?}
+    C2 -- ні --> PEND((Pending))
+    C2 -- так --> C2out[[→ OrderService: Передати на оплату]]
 
-    subgraph WEB["WebApp"]
-        W1{Сесія дійсна? EARS-14}
-        W2[[Відповідь 401]]
-    end
+    W2in[[← WebApp: 401 Unauthorized]] --> C3([Переглянути статус])
+    OSin1[[← OrderService: insufficientStock]] --> C3
+    OSin2[[← OrderService: статус замовлення]] --> C3
+    OSin3[[← OrderService: доставлено]] --> C3
+    OSin4[[← OrderService: FAILED, DLQ]] --> C3
+    C3 --> STOP((кінець))
+```
 
-    subgraph ORD["OrderService"]
-        O1[Прочитати ціни та залишки UC_Snapshot]
-        O2{stock_quantity ≥ ORDER_ITEM.quantity?}
-        O3[[Відмова insufficientStock]]
-        O4[Створити ORDER status = Pending, ORDER_ITEM, резерв]
-        O10[Перенаправити на PaymentGateway]
-        subgraph TX["Транзакція оплати (атомарна)"]
-            O5(( fork ))
-            O6[Database.updateOrder status = Paid]
-            O7[Database.insertOutbox OrderPaidEvent]
-            O8(( join: коміт ))
-        end
-        O9[Database.updateOrder status = Unpaid і releaseStock в одній транзакції]
-        O11[[Відповідь: статус замовлення]]
-        R1[Relay: зчитати запис outbox після коміту]
-        R2[Надіслати email покупцю]
-        R3{Доставлено?}
-        R4[Зафіксувати спробу +1]
-        R5[[status = FAILED, журнал, DLQ]]
-    end
+### Крок 2. WebApp: перевірка сесії
 
-    subgraph PAY["PaymentGateway"]
-        P1[charge orderId, total_amount]
-        P2{approved?}
-    end
+```mermaid
+flowchart TB
+    W0in[[← Customer: Оформити замовлення]] --> W1{Сесія дійсна?<br/>EARS-14}
+    W1 -- ні --> W2[[401 Unauthorized]]
+    W2 --> W2out[[→ Customer: Переглянути статус]]
+    W1 -- так --> W1out[[→ OrderService: Прочитати ціни та залишки]]
+```
 
-    STOP((кінець))
-    UNP((Unpaid: кінець процесу, повтор оплати — UC_RetryPayment))
-    PEND((Pending: кінець процесу, автоскасування — UC_ExpireOrder))
+### Крок 3. OrderService: створення замовлення
 
-    START --> C1 --> W1
-    W1 -- ні --> W2 --> C3
-    W1 -- так --> O1 --> O2
-    O2 -- ні --> O3 --> C3
-    O2 -- так --> O4 --> C2
-    C2 -- ні --> PEND
-    C2 -- так --> O10 --> P1 --> P2
-    P2 -- approved --> O5
-    O5 --> O6 --> O8
-    O5 --> O7 --> O8
-    O8 --> R1 --> R2 --> R3
-    R3 -- так --> C3
-    R3 -- ні --> R4
+```mermaid
+flowchart TB
+    O0in[[← WebApp: сесія дійсна]] --> O1[Прочитати ціни<br/>та залишки]
+    O1 --> O2{Товар є<br/>на складі?}
+    O2 -- ні --> O3[[insufficientStock]]
+    O3 --> O3out[[→ Customer: Переглянути статус]]
+    O2 -- так --> O4[Створити ORDER<br/>status = Pending]
+    O4 --> O4out[[→ Customer: Онлайн-оплата?]]
+
+    O10in[[← Customer: Онлайн-оплата = так]] --> O10[Передати на оплату]
+    O10 --> O10out[[→ PaymentGateway: Списати кошти]]
+```
+
+### Крок 4. PaymentGateway: списання
+
+```mermaid
+flowchart TB
+    P_in[[← OrderService: Передати на оплату]] --> P1[Списати кошти]
+    P1 --> P2{Схвалено?}
+    P2 -- approved --> P2ok[[→ OrderService: approved]]
+    P2 -- declined --> P2no[[→ OrderService: declined]]
+```
+
+### Крок 5. OrderService: фіксація оплати
+
+```mermaid
+flowchart TB
+    P_ok[[← PaymentGateway: approved]] --> O5((fork))
+    O5 --> O6[ORDER.status<br/>= Paid]
+    O5 --> O7[insert outbox<br/>OrderPaidEvent]
+    O6 --> O8((join: коміт))
+    O7 --> O8
+    O8 --> O8out[[→ OrderService: Relay читає outbox]]
+```
+
+### Крок 6. OrderService: фонове сповіщення (Outbox Relay)
+
+```mermaid
+flowchart TB
+    R0in[[← OrderService: join коміт]] --> R1[Relay: читати outbox]
+    R1 --> R2[Надіслати email]
+    R2 --> R3{Доставлено?}
+    R3 -- так --> R3out[[→ Customer: Переглянути статус]]
+    R3 -- ні --> R4[Спроба +1]
     R4 -- спроба < 4 --> R2
-    R4 -- вичерпано (спроба ≥ 4) --> R5 --> C3
-    P2 -- declined --> O9 --> O11
-    O9 --> UNP
-    C3 --> STOP
+    R4 -- спроба ≥ 4 --> R5[[FAILED, DLQ]]
+    R5 --> R5out[[→ Customer: Переглянути статус]]
+```
+
+### Крок 7. OrderService: відмова оплати
+
+```mermaid
+flowchart TB
+    P_no[[← PaymentGateway: declined]] --> O9[status = Unpaid<br/>резерв знято]
+    O9 --> O11[[Статус замовлення]]
+    O11 --> O11out[[→ Customer: Переглянути статус]]
+    O9 --> UNP((Unpaid))
 ```
