@@ -1,6 +1,6 @@
 # Activity-діаграма: оформлення та оплата замовлення
 
-Діаграма подана п'ятьма інлайн-блоками в порядку виконання процесу. Перехід між блоками позначено вузлами `→ Доріжка: дія` (вихід) і `← Доріжка: дія` (вхід). Блоки 3 і 5 належать одній доріжці `OrderService`, але розділені етапами: створення замовлення та фіксація оплати.
+Діаграма подана сьома інлайн-блоками в порядку виконання процесу. Кожен блок описує один етап. Перехід між блоками позначено вузлами `→ Доріжка: дія` (вихід) і `← Доріжка: дія` (вхід).
 
 Доріжки: `Customer`, `WebApp`, `OrderService` (включно з фоновим Outbox Relay), `PaymentGateway`.
 Стани `ORDER` позначено в мітках вузлів: `Pending` (створення), `Paid` (успішна оплата), `Unpaid` (відмова оплати). Стан `Cancelled` поза цією діаграмою (EARS-12, лише з `Pending`).
@@ -60,7 +60,7 @@ flowchart TB
     P2 -- declined --> P2no[[→ OrderService: declined]]
 ```
 
-### Крок 5. OrderService: фіксація оплати, сповіщення, відмова
+### Крок 5. OrderService: фіксація оплати
 
 ```mermaid
 flowchart TB
@@ -69,7 +69,14 @@ flowchart TB
     O5 --> O7[insert outbox<br/>OrderPaidEvent]
     O6 --> O8((join: коміт))
     O7 --> O8
-    O8 --> R1[Relay: читати outbox]
+    O8 --> O8out[[→ OrderService: Relay читає outbox]]
+```
+
+### Крок 6. OrderService: фонове сповіщення (Outbox Relay)
+
+```mermaid
+flowchart TB
+    R0in[[← OrderService: join коміт]] --> R1[Relay: читати outbox]
     R1 --> R2[Надіслати email]
     R2 --> R3{Доставлено?}
     R3 -- так --> R3out[[→ Customer: Переглянути статус]]
@@ -77,7 +84,12 @@ flowchart TB
     R4 -- спроба < 4 --> R2
     R4 -- спроба ≥ 4 --> R5[[FAILED, DLQ]]
     R5 --> R5out[[→ Customer: Переглянути статус]]
+```
 
+### Крок 7. OrderService: відмова оплати
+
+```mermaid
+flowchart TB
     P_no[[← PaymentGateway: declined]] --> O9[status = Unpaid<br/>резерв знято]
     O9 --> O11[[Статус замовлення]]
     O11 --> O11out[[→ Customer: Переглянути статус]]
