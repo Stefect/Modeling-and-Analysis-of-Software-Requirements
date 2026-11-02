@@ -42,6 +42,7 @@
 * `Web Client` requires: `IAuthApi`, `ICatalogApi`, `IOrderApi`, `IReviewApi`, `ISellerApi`.
 * `API Gateway` provides: `IAuthApi`, `ICatalogApi`, `IOrderApi`, `IReviewApi`, `ISellerApi`; requires: `IAuthService`, `ICatalogService`, `IOrderService`, `IReviewService`, `ISellerService`.
 * `Order Service` requires: `IOrderRepository`, `IProductRepository`, `IPaymentGateway`, `IOutboxRepository`.
+* `Payment Adapter` provides: `IPaymentGateway`; requires: зовнішній API `Payment Gateway`.
 * `Data Access` provides: `IOrderRepository`, `IProductRepository`, `IUserRepository`, `IStoreRepository`, `IReviewRepository`, `IOutboxRepository`; requires: `IDbConnection`.
 * `Outbox Relay Worker` requires: `IOutboxRepository`, `IEmailSender`.
 
