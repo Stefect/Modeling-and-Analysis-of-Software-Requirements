@@ -71,7 +71,7 @@ flowchart TB
 
     PaymentAdapter -->|зовнішній API| PaymentGateway
     NotificationService -->|зовнішній API| EmailProvider
-    AuthService -.->|IIdentityProvider опц| IdentityProvider
+    AuthService -.->|IIdentityProvider опційно| IdentityProvider
 
     DataAccess -->|IDbConnection| Database
 
