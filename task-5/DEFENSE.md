@@ -19,4 +19,5 @@ AI (Claude Haiku через OpenCode CLI) ставилася задача про
 * **Узгодженість із попередніми моделями:** кожен компонент зіставлений із сутностями ERD і Use Cases (таблиця в `spec.md` §2); потік `Pending → Paid/Unpaid`, Outbox і автоскасування через 24 год (EARS-12) підтримано компонентами `Order Service`, `Outbox Relay Worker`, `Order Expiry Scheduler`.
 * **Інтерфейси:** усі зв'язки між компонентами підписано іменами provided/required-інтерфейсів (`IOrderService`, `IOrderRepository`, `IPaymentGateway` тощо); зовнішні системи ізольовані адаптерами (`Payment Adapter`, `Notification Service`).
 * **Синтаксична перевірка:** PlantUML (`task-5/component.puml`) перевірено локально на коректність синтаксису; Mermaid-блок у `task-5/component.md` рендериться на GitHub.
+* **Посилання на PR:** https://github.com/Stefect/Modeling-and-Analysis-of-Software-Requirements/pull/4
 * **Аудит:** топ-3 розбіжності виправлено через зміну специфікації/інтерфейсів, а не ручним патчем діаграми.
