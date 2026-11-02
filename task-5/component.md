@@ -64,17 +64,17 @@ flowchart TB
     OrderService --> DataAccess
     SellerReviewService --> DataAccess
 
-    OrderService --> PaymentAdapter
-    OrderService --> OutboxRelay
-    OutboxRelay --> DataAccess
-    OutboxRelay --> NotificationService
-    ExpiryScheduler --> OrderService
+    OrderService -->|IPaymentGateway| PaymentAdapter
+    OrderService -->|IOutboxRepository| OutboxRelay
+    OutboxRelay -->|IOutboxRepository| DataAccess
+    OutboxRelay -->|IEmailSender| NotificationService
+    ExpiryScheduler -->|IOrderService| OrderService
 
-    PaymentAdapter --> PaymentGateway
-    NotificationService --> EmailProvider
-    AuthService -.-> IdentityProvider
+    PaymentAdapter -->|зовнішній API| PaymentGateway
+    NotificationService -->|зовнішній API| EmailProvider
+    AuthService -.->|IIdentityProvider опц| IdentityProvider
 
-    DataAccess --> Database
+    DataAccess -->|IDbConnection| Database
 ```
 
 ## Примітки
