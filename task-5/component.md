@@ -47,7 +47,7 @@ flowchart LR
     end
 
     %% --- Зв'язки клієнт- API ---
-    WebClient -->|IAuthApi, ICatalogApi, IOrderApi, IReviewApi, ISellerApi| Gateway
+    WebClient -->|IAuthApi ICatalogApi IOrderApi IReviewApi ISellerApi| Gateway
 
     %% --- API -> сервіси ---
     Gateway -->|IAuthService| AuthService
@@ -58,17 +58,17 @@ flowchart LR
 
     %% --- Сервіси -> інфраструктура/дані ---
     AuthService -->|IUserRepository| DataAccess
-    CatalogService -->|IProductRepository, ICategoryRepository, IStoreRepository| DataAccess
+    CatalogService -->|IProductRepository ICategoryRepository IStoreRepository| DataAccess
     SellerService -->|IStoreRepository, IProductRepository| DataAccess
-    OrderService -->|IOrderRepository, IProductRepository, IOutboxRepository| DataAccess
+    OrderService -->|IOrderRepository IProductRepository IOutboxRepository| DataAccess
     ReviewService -->|IReviewRepository| DataAccess
     OrderService -->|IPaymentGateway| PaymentAdapter
-    OrderService -->|IOutboxRepository (події)| OutboxRelay
+    OrderService -->|IOutboxRepository події| OutboxRelay
 
     %% --- Фонові процеси ---
     OutboxRelay -->|IOutboxRepository| DataAccess
     OutboxRelay -->|IEmailSender| NotificationService
-    ExpiryScheduler -->|IOrderService (expire)| OrderService
+    ExpiryScheduler -->|IOrderService expire| OrderService
 
     %% --- Зовнішні інтеграції ---
     PaymentAdapter -->|зовнішній API| PaymentGateway
