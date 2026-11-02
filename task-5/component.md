@@ -4,8 +4,11 @@
 
 ## Компоненти та залежності (огляд)
 
+Використано вертикальне розташування шарів (зверху вниз), щоб стрілки не накладалися. Зовнішні системи винесено в окремий блок справа.
+
 ```mermaid
-flowchart LR
+%%{init: {'flowchart': {'curve': 'basis'}}}%%
+flowchart TB
     %% --- Клієнт ---
     subgraph Client["Клієнт"]
         WebClient["Web Client (SPA)"]
@@ -18,15 +21,17 @@ flowchart LR
 
     %% --- Сервіси ---
     subgraph Services["Сервіси"]
-        AuthService["Auth Service"]
-        CatalogService["Catalog Service"]
-        OrderService["Order Service"]
-        SellerReviewService["Seller and Review Service"]
-        NotificationService["Notification Service"]
+        direction LR
+        AuthService["Auth"]
+        CatalogService["Catalog"]
+        OrderService["Order"]
+        SellerReviewService["Seller / Review"]
+        NotificationService["Notification"]
     end
 
     %% --- Інфраструктура ---
     subgraph Infra["Інфраструктура"]
+        direction LR
         PaymentAdapter["Payment Adapter"]
         OutboxRelay["Outbox Relay"]
         ExpiryScheduler["Expiry Scheduler"]
@@ -40,12 +45,13 @@ flowchart LR
 
     %% --- Зовнішні ---
     subgraph External["Зовнішні системи"]
+        direction TB
         PaymentGateway["Payment Gateway"]
-        EmailProvider["Email and SMS"]
-        IdentityProvider["Identity Provider (опц.)"]
+        EmailProvider["Email / SMS"]
+        IdentityProvider["Identity (опц.)"]
     end
 
-    %% --- Зв'язки ---
+    %% --- Зв'язки (основний потік) ---
     WebClient --> Gateway
     Gateway --> AuthService
     Gateway --> CatalogService
@@ -78,3 +84,4 @@ flowchart LR
 * `Expiry Scheduler` реалізує EARS-12: `Pending` понад 24 год → `Cancelled` + повернення залишків.
 * `Identity Provider` позначено пунктиром як опційна інтеграція (автентифікація за `USER.password_hash`, EARS-11).
 * Детальні інтерфейси (`IOrderService`, `IOrderRepository`, `IPaymentGateway` тощо) — у `spec.md` §4.
+* Еталонна повна версія з усіма інтерфейсами — у `task-5/component.puml`.
