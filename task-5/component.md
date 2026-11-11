@@ -33,49 +33,56 @@ flowchart TB
     %% --- Інфраструктура ---
     subgraph Infra["Інфраструктура"]
         direction LR
-        PaymentAdapter["Payment Adapter"]
+        DataAccess["Data Access (Repository)"]
         OutboxRelay["Outbox Relay Worker"]
         ExpiryScheduler["Order Expiry Scheduler"]
-        DataAccess["Data Access (Repository)"]
+        PaymentAdapter["Payment Adapter"]
     end
 
-    %% --- Дані ---
+    %% --- База даних ---
     subgraph Data["Дані"]
         Database[("PostgreSQL")]
     end
 
-    %% --- Зовнішні ---
+    %% --- Зовнішні системи ---
     subgraph External["Зовнішні системи"]
-        direction TB
-        PaymentGateway["Payment Gateway"]
-        EmailProvider["Email / SMS Provider"]
+        direction LR
         IdentityProvider["Identity Provider (опц.)"]
+        EmailProvider["Email / SMS Provider"]
+        PaymentGateway["Payment Gateway"]
     end
 
-    %% --- Зв'язки (основний потік) ---
+    %% --- Зв'язки (Клієнт -> API) ---
     WebClient -->|HTTP/REST| Gateway
-    Gateway -->|IAuthService| AuthService
-    Gateway -->|ICatalogService| CatalogService
-    Gateway -->|IOrderService| OrderService
-    Gateway -->|ISellerService| SellerService
-    Gateway -->|IReviewService| ReviewService
 
-    AuthService -->|IUser| DataAccess
+    %% --- Зв'язки (API -> Сервіси) ---
+    Gateway -->|IAuth| AuthService
+    Gateway -->|ICatalog| CatalogService
+    Gateway -->|ISeller| SellerService
+    Gateway -->|IOrder| OrderService
+    Gateway -->|IReview| ReviewService
+
+    %% --- Зв'язки (Сервіси -> Інфраструктура / БД) ---
+    AuthService -->|IUserRepository| DataAccess
+    AuthService -.->|IIdentityProvider| IdentityProvider
+
     CatalogService -->|IProduct, ICategory, IStore| DataAccess
     SellerService -->|IStore, IProduct| DataAccess
-    OrderService -->|IOrder, IProduct, IOutbox| DataAccess
-    ReviewService -->|IReview| DataAccess
+    ReviewService -->|IReviewRepository| DataAccess
 
-    OrderService -->|IOutbox| OutboxRelay
-    OutboxRelay -->|IOutbox| DataAccess
-    OutboxRelay -->|IEmailSender| NotificationService
+    OrderService -->|IOrder, IProduct, IOutbox| DataAccess
+    OrderService -->|IPaymentGateway| PaymentAdapter
+    OrderService -->|IOutboxRepository| OutboxRelay
+
     ExpiryScheduler -->|IOrderService| OrderService
 
-    OrderService -->|IPaymentGateway| PaymentAdapter
-    PaymentAdapter -->|зовнішній API| PaymentGateway
-    NotificationService -->|зовнішній API| EmailProvider
-    AuthService -.->|IIdentityProvider опц.| IdentityProvider
+    OutboxRelay -->|IOutboxRepository| DataAccess
+    OutboxRelay -->|IEmailSender| NotificationService
 
+    NotificationService -->|зовнішній API| EmailProvider
+    PaymentAdapter -->|зовнішній API| PaymentGateway
+
+    %% --- БД ---
     DataAccess -->|IDbConnection| Database
 ```
 
