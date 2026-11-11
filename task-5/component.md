@@ -4,22 +4,20 @@
 
 ## Компоненти та залежності (огляд)
 
-Використано рендерер `elk` з ортогональними стрілками (`step`) та налаштованими відступами, щоб діаграма була широкою, читабельною і без накладань. База даних винесена в окремий підграф `Дані`. Стрілки підписано повними іменами інтерфейсів з перенесенням рядків.
+Використано рендерер `elk` з ортогональними стрілками (`step`) та налаштованими відступами. Невидимі зв'язки `~~~` примусово вирівнюють шари один під одним. База даних винесена в окремий підграф. Стрілки підписано повними іменами інтерфейсів з перенесенням рядків.
 
 ```mermaid
 %%{init: {"flowchart": {"defaultRenderer": "elk", "curve": "step", "nodeSpacing": 40, "rankSpacing": 60}}}%%
 flowchart TB
-    %% --- Клієнт ---
+    %% --- Шари (Оголошення блоків) ---
     subgraph Client["Клієнт"]
         WebClient["Web Client (SPA)"]
     end
 
-    %% --- API ---
     subgraph API["API"]
         Gateway["API Gateway / BFF"]
     end
 
-    %% --- Прикладні сервіси ---
     subgraph Services["Сервіси"]
         AuthService["Auth Service"]
         CatalogService["Catalog Service"]
@@ -29,25 +27,30 @@ flowchart TB
         NotificationService["Notification Service"]
     end
 
-    %% --- Інфраструктура ---
     subgraph Infra["Інфраструктура"]
+        DataAccess["Data Access (Repository)"]
         PaymentAdapter["Payment Adapter"]
         OutboxRelay["Outbox Relay Worker"]
         ExpiryScheduler["Order Expiry Scheduler"]
-        DataAccess["Data Access (Repository)"]
     end
 
-    %% --- Дані ---
     subgraph Data["Дані"]
         Database[("PostgreSQL")]
     end
 
-    %% --- Зовнішні системи ---
     subgraph External["Зовнішні системи"]
         IdentityProvider["Identity Provider (опц.)"]
         PaymentGateway["Payment Gateway"]
         EmailProvider["Email / SMS Provider"]
     end
+
+    %% --- ПРИМУСОВЕ ВИРІВНЮВАННЯ ШАРІВ (Невидимі стрілки) ---
+    %% Це змусить Mermaid поставити їх строго один під одним
+    Client ~~~ API
+    API ~~~ Services
+    Services ~~~ Infra
+    Infra ~~~ Data
+    Data ~~~ External
 
     %% --- Зв'язки Клієнт -> API ---
     WebClient -->|HTTP/REST| Gateway
@@ -60,8 +63,8 @@ flowchart TB
     Gateway -->|IReviewService| ReviewService
 
     %% --- Зв'язки Сервісів ---
-    AuthService -->|IUserRepository| DataAccess
     AuthService -.->|IIdentityProvider| IdentityProvider
+    AuthService -->|IUserRepository| DataAccess
 
     CatalogService -->|IProductRepository<br>ICategoryRepository<br>IStoreRepository| DataAccess
     SellerService -->|IStoreRepository<br>IProductRepository| DataAccess
