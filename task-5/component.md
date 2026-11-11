@@ -4,66 +4,85 @@
 
 ## Компоненти та залежності (огляд)
 
-Використано рендерер `elk` з ортогональними стрілками (`step`) та налаштованими відступами, щоб діаграма була широкою, читабельною і без накладань. Внутрішні блоки розташовано горизонтально (рядками). Довгі назви інтерфейсів на стрілках скорочено.
+Використано рендерер `elk` з ортогональними стрілками (`step`) та налаштованими відступами, щоб діаграма була широкою, читабельною і без накладань. База даних винесена в окремий підграф `Дані`. Стрілки підписано повними іменами інтерфейсів з перенесенням рядків.
 
 ```mermaid
-%%{init: {"flowchart": {"defaultRenderer": "elk", "curve": "step", "nodeSpacing": 40, "rankSpacing": 50}}}%%
+%%{init: {"flowchart": {"defaultRenderer": "elk", "curve": "step", "nodeSpacing": 40, "rankSpacing": 60}}}%%
 flowchart TB
-    %% --- Клієнт та API ---
-    WebClient["Web Client (SPA)"] -->|HTTP/REST| Gateway["API Gateway / BFF"]
+    %% --- Клієнт ---
+    subgraph Client["Клієнт"]
+        WebClient["Web Client (SPA)"]
+    end
 
-    %% --- Центральна бізнес-логіка (Сервіси) ---
-    subgraph Сервіси
+    %% --- API ---
+    subgraph API["API"]
+        Gateway["API Gateway / BFF"]
+    end
+
+    %% --- Прикладні сервіси ---
+    subgraph Services["Сервіси"]
         AuthService["Auth Service"]
         CatalogService["Catalog Service"]
         SellerService["Seller Service"]
         OrderService["Order Service"]
         ReviewService["Review Service"]
+        NotificationService["Notification Service"]
     end
 
-    Gateway -->|IAuth| AuthService
-    Gateway -->|ICatalog| CatalogService
-    Gateway -->|ISeller| SellerService
-    Gateway -->|IOrder| OrderService
-    Gateway -->|IReview| ReviewService
-
-    %% --- Рівень Даних (DAL та БД в одному блоці для прямоти ліній) ---
-    subgraph Дані
+    %% --- Інфраструктура ---
+    subgraph Infra["Інфраструктура"]
+        PaymentAdapter["Payment Adapter"]
+        OutboxRelay["Outbox Relay Worker"]
+        ExpiryScheduler["Order Expiry Scheduler"]
         DataAccess["Data Access (Repository)"]
+    end
+
+    %% --- Дані ---
+    subgraph Data["Дані"]
         Database[("PostgreSQL")]
     end
-    DataAccess -->|IDbConnection| Database
-
-    %% --- Прямі зв'язки від Сервісів до Бази (тепер йдуть строго вниз) ---
-    AuthService -->|IUser| DataAccess
-    CatalogService -->|IProduct, ICategory, IStore| DataAccess
-    SellerService -->|IStore, IProduct| DataAccess
-    OrderService -->|IOrder, IProduct, IOutbox| DataAccess
-    ReviewService -->|IReview| DataAccess
-
-    %% --- Фонові процеси та Адаптери (БЕЗ обгортки-стіни) ---
-    ExpiryScheduler["Order Expiry Scheduler"]
-    PaymentAdapter["Payment Adapter"]
-    OutboxRelay["Outbox Relay Worker"]
-    NotificationService["Notification Service"]
-
-    %% --- Зв'язки воркерів ---
-    ExpiryScheduler -->|IOrderService| OrderService
-    OrderService -->|IPaymentGateway| PaymentAdapter
-    OrderService -->|IOutbox| OutboxRelay
-    OutboxRelay -->|IEmailSender| NotificationService
-    OutboxRelay -->|IOutbox| DataAccess
 
     %% --- Зовнішні системи ---
-    subgraph Зовнішні
+    subgraph External["Зовнішні системи"]
         IdentityProvider["Identity Provider (опц.)"]
         PaymentGateway["Payment Gateway"]
         EmailProvider["Email / SMS Provider"]
     end
 
+    %% --- Зв'язки Клієнт -> API ---
+    WebClient -->|HTTP/REST| Gateway
+
+    %% --- Зв'язки API -> Сервіси ---
+    Gateway -->|IAuthService| AuthService
+    Gateway -->|ICatalogService| CatalogService
+    Gateway -->|IOrderService| OrderService
+    Gateway -->|ISellerService| SellerService
+    Gateway -->|IReviewService| ReviewService
+
+    %% --- Зв'язки Сервісів ---
+    AuthService -->|IUserRepository| DataAccess
     AuthService -.->|IIdentityProvider| IdentityProvider
-    PaymentAdapter -->|API| PaymentGateway
-    NotificationService -->|API| EmailProvider
+
+    CatalogService -->|IProductRepository<br>ICategoryRepository<br>IStoreRepository| DataAccess
+    SellerService -->|IStoreRepository<br>IProductRepository| DataAccess
+
+    OrderService -->|IOrderRepository<br>IProductRepository<br>IOutboxRepository| DataAccess
+    OrderService -->|IPaymentGateway| PaymentAdapter
+    OrderService -->|IOutboxRepository| OutboxRelay
+
+    ReviewService -->|IReviewRepository| DataAccess
+
+    %% --- Зв'язки Інфраструктури ---
+    OutboxRelay -->|IOutboxRepository| DataAccess
+    OutboxRelay -->|IEmailSender| NotificationService
+
+    ExpiryScheduler -->|IOrderService| OrderService
+
+    PaymentAdapter -->|зовнішній API| PaymentGateway
+    NotificationService -->|зовнішній API| EmailProvider
+
+    %% --- БД ---
+    DataAccess -->|IDbConnection| Database
 ```
 
 ## Примітки
