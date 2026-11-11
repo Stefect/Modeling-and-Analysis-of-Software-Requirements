@@ -4,10 +4,10 @@
 
 ## Компоненти та залежності (огляд)
 
-Використано рендерер `elk` з ортогональними стрілками (`step`) та збільшеними відступами (`nodeSpacing: 90`, `rankSpacing: 70`). Невидимі зв'язки `~~~` примусово вирівнюють шари один під одним. База даних винесена в окремий підграф. Стрілки підписано повними іменами інтерфейсів з перенесенням рядків.
+Використано рендерер `elk` з ортогональними стрілками (`step`) та налаштованими відступами (`nodeSpacing: 60`, `rankSpacing: 70`). Невидимі зв'язки `~~~` примусово вирівнюють шари один під одним. Блок `Infra` має `direction LR`, щоб воркери стали в горизонтальний ряд. Зворотна стрілка `DataAccess <---|IOutboxRepository| OutboxRelay` примушує `Data Access` розташуватися вище воркера.
 
 ```mermaid
-%%{init: {"flowchart": {"defaultRenderer": "elk", "curve": "step", "nodeSpacing": 90, "rankSpacing": 70}}}%%
+%%{init: {"flowchart": {"defaultRenderer": "elk", "curve": "step", "nodeSpacing": 60, "rankSpacing": 70}}}%%
 flowchart TB
     %% --- Шари (Оголошення блоків) ---
     subgraph Client["Клієнт"]
@@ -28,7 +28,8 @@ flowchart TB
     end
 
     subgraph Infra["Інфраструктура"]
-        %% Оголошуємо DataAccess першим, щоб він був найдоступнішим для стрілок згори
+        %% Змушуємо інфраструктуру компонуватися в ширину, а не в висоту
+        direction LR
         DataAccess["Data Access (Repository)"]
         PaymentAdapter["Payment Adapter"]
         OutboxRelay["Outbox Relay Worker"]
@@ -76,7 +77,9 @@ flowchart TB
     ReviewService -->|IReviewRepository| DataAccess
 
     %% --- Зв'язки Інфраструктури ---
-    OutboxRelay -->|IOutboxRepository| DataAccess
+    %% ОСЬ ГОЛОВНИЙ ХАК: Стрілка написана задом наперед, щоб Data Access сплив наверх!
+    DataAccess <---|IOutboxRepository| OutboxRelay
+
     OutboxRelay -->|IEmailSender| NotificationService
 
     ExpiryScheduler -->|IOrderService| OrderService
