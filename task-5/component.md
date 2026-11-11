@@ -4,11 +4,11 @@
 
 ## Компоненти та залежності (огляд)
 
-Використано вертикальне розташування шарів (зверху вниз), щоб стрілки не накладалися. Зовнішні системи винесено в окремий блок справа.
+Використано горизонтальне розташування шарів (зліва направо), щоб стрілки були прямими та не накладалися. Зовнішні системи винесено в окремий блок праворуч.
 
 ```mermaid
-%%{init: {'flowchart': {'curve': 'basis'}}}%%
-flowchart TB
+%%{init: {'flowchart': {'curve': 'linear'}}}%%
+flowchart LR
     %% --- Клієнт ---
     subgraph Client["Клієнт"]
         WebClient["Web Client (SPA)"]
@@ -21,7 +21,7 @@ flowchart TB
 
     %% --- Сервіси ---
     subgraph Services["Сервіси"]
-        direction LR
+        direction TB
         AuthService["Auth"]
         CatalogService["Catalog"]
         OrderService["Order"]
@@ -31,7 +31,7 @@ flowchart TB
 
     %% --- Інфраструктура ---
     subgraph Infra["Інфраструктура"]
-        direction LR
+        direction TB
         PaymentAdapter["Payment Adapter"]
         OutboxRelay["Outbox Relay"]
         ExpiryScheduler["Expiry Scheduler"]
