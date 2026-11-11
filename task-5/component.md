@@ -7,13 +7,13 @@
 Використано рендерер `elk` з ортогональними стрілками (`step`) та налаштованими відступами, щоб діаграма була широкою, читабельною і без накладань. Внутрішні блоки розташовано горизонтально (рядками). Довгі назви інтерфейсів на стрілках скорочено.
 
 ```mermaid
-%%{init: {"flowchart": {"defaultRenderer": "elk", "curve": "step", "nodeSpacing": 40, "rankSpacing": 60}}}%%
+%%{init: {"flowchart": {"defaultRenderer": "elk", "curve": "step", "nodeSpacing": 40, "rankSpacing": 50}}}%%
 flowchart TB
     %% --- Клієнт та API ---
     WebClient["Web Client (SPA)"] -->|HTTP/REST| Gateway["API Gateway / BFF"]
 
     %% --- Центральна бізнес-логіка (Сервіси) ---
-    subgraph Services["Сервіси"]
+    subgraph Сервіси
         AuthService["Auth Service"]
         CatalogService["Catalog Service"]
         SellerService["Seller Service"]
@@ -27,39 +27,35 @@ flowchart TB
     Gateway -->|IOrder| OrderService
     Gateway -->|IReview| ReviewService
 
-    %% --- Фонові процеси та Адаптери ---
-    subgraph Workers["Фонові процеси та Адаптери"]
-        ExpiryScheduler["Order Expiry Scheduler"]
-        PaymentAdapter["Payment Adapter"]
-        OutboxRelay["Outbox Relay Worker"]
-        NotificationService["Notification Service"]
-    end
-
-    ExpiryScheduler -->|IOrderService| OrderService
-    OrderService -->|IPaymentGateway| PaymentAdapter
-    OrderService -->|IOutbox| OutboxRelay
-    OutboxRelay -->|IEmailSender| NotificationService
-
-    %% --- Рівень Даних (DAL) ---
-    subgraph DAL["Доступ до даних"]
+    %% --- Рівень Даних (DAL та БД в одному блоці для прямоти ліній) ---
+    subgraph Дані
         DataAccess["Data Access (Repository)"]
+        Database[("PostgreSQL")]
     end
+    DataAccess -->|IDbConnection| Database
 
+    %% --- Прямі зв'язки від Сервісів до Бази (тепер йдуть строго вниз) ---
     AuthService -->|IUser| DataAccess
     CatalogService -->|IProduct, ICategory, IStore| DataAccess
     SellerService -->|IStore, IProduct| DataAccess
     OrderService -->|IOrder, IProduct, IOutbox| DataAccess
     ReviewService -->|IReview| DataAccess
+
+    %% --- Фонові процеси та Адаптери (БЕЗ обгортки-стіни) ---
+    ExpiryScheduler["Order Expiry Scheduler"]
+    PaymentAdapter["Payment Adapter"]
+    OutboxRelay["Outbox Relay Worker"]
+    NotificationService["Notification Service"]
+
+    %% --- Зв'язки воркерів ---
+    ExpiryScheduler -->|IOrderService| OrderService
+    OrderService -->|IPaymentGateway| PaymentAdapter
+    OrderService -->|IOutbox| OutboxRelay
+    OutboxRelay -->|IEmailSender| NotificationService
     OutboxRelay -->|IOutbox| DataAccess
 
-    %% --- База даних ---
-    subgraph Data["Дані"]
-        Database[("PostgreSQL")]
-    end
-    DataAccess -->|IDbConnection| Database
-
     %% --- Зовнішні системи ---
-    subgraph External["Зовнішні системи"]
+    subgraph Зовнішні
         IdentityProvider["Identity Provider (опц.)"]
         PaymentGateway["Payment Gateway"]
         EmailProvider["Email / SMS Provider"]
