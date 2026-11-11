@@ -4,7 +4,7 @@
 
 ## Компоненти та залежності (огляд)
 
-Використано вертикальне розташування шарів (зверху вниз), щоб стрілки були прямими та не накладалися. Внутрішні блоки розташовано горизонтально (рядками). Зовнішні системи винесено в окремий блок справа.
+Використано вертикальне розташування шарів (зверху вниз), щоб стрілки були прямими та не накладалися. Внутрішні блоки розташовано горизонтально (рядками). Зовнішні системи винесено в окремий блок справа. Стрілки підписано іменами provided/required-інтерфейсів.
 
 ```mermaid
 %%{init: {'flowchart': {'curve': 'linear'}}}%%
@@ -22,20 +22,21 @@ flowchart TB
     %% --- Сервіси ---
     subgraph Services["Сервіси"]
         direction LR
-        AuthService["Auth"]
-        CatalogService["Catalog"]
-        OrderService["Order"]
-        SellerReviewService["Seller / Review"]
-        NotificationService["Notification"]
+        AuthService["Auth Service"]
+        CatalogService["Catalog Service"]
+        SellerService["Seller Service"]
+        OrderService["Order Service"]
+        ReviewService["Review Service"]
+        NotificationService["Notification Service"]
     end
 
     %% --- Інфраструктура ---
     subgraph Infra["Інфраструктура"]
         direction LR
         PaymentAdapter["Payment Adapter"]
-        OutboxRelay["Outbox Relay"]
-        ExpiryScheduler["Expiry Scheduler"]
-        DataAccess["Data Access"]
+        OutboxRelay["Outbox Relay Worker"]
+        ExpiryScheduler["Order Expiry Scheduler"]
+        DataAccess["Data Access (Repository)"]
     end
 
     %% --- Дані ---
@@ -47,35 +48,35 @@ flowchart TB
     subgraph External["Зовнішні системи"]
         direction TB
         PaymentGateway["Payment Gateway"]
-        EmailProvider["Email / SMS"]
-        IdentityProvider["Identity (опц.)"]
+        EmailProvider["Email / SMS Provider"]
+        IdentityProvider["Identity Provider (опц.)"]
     end
 
     %% --- Зв'язки (основний потік) ---
-    WebClient --> Gateway
-    Gateway --> AuthService
-    Gateway --> CatalogService
-    Gateway --> OrderService
-    Gateway --> SellerReviewService
-    Gateway --> NotificationService
+    WebClient -->|HTTP/REST| Gateway
+    Gateway -->|IAuthService| AuthService
+    Gateway -->|ICatalogService| CatalogService
+    Gateway -->|IOrderService| OrderService
+    Gateway -->|ISellerService| SellerService
+    Gateway -->|IReviewService| ReviewService
 
-    AuthService --> DataAccess
-    CatalogService --> DataAccess
-    OrderService --> DataAccess
-    SellerReviewService --> DataAccess
+    AuthService -->|IUserRepository| DataAccess
+    CatalogService -->|IProductRepository, ICategoryRepository, IStoreRepository| DataAccess
+    SellerService -->|IStoreRepository, IProductRepository| DataAccess
+    OrderService -->|IOrderRepository, IProductRepository, IOutboxRepository| DataAccess
+    ReviewService -->|IReviewRepository| DataAccess
 
-    OrderService --> OutboxRelay
-    OutboxRelay --> DataAccess
+    OrderService -->|IOutboxRepository| OutboxRelay
+    OutboxRelay -->|IOutboxRepository| DataAccess
     OutboxRelay -->|IEmailSender| NotificationService
-    ExpiryScheduler --> OrderService
-
-    PaymentAdapter -->|зовнішній API| PaymentGateway
-    NotificationService -->|зовнішній API| EmailProvider
-    AuthService -.->|IIdentityProvider опційно| IdentityProvider
-
-    DataAccess -->|IDbConnection| Database
+    ExpiryScheduler -->|IOrderService| OrderService
 
     OrderService -->|IPaymentGateway| PaymentAdapter
+    PaymentAdapter -->|зовнішній API| PaymentGateway
+    NotificationService -->|зовнішній API| EmailProvider
+    AuthService -.->|IIdentityProvider (опц.)| IdentityProvider
+
+    DataAccess -->|IDbConnection| Database
 ```
 
 ## Примітки
