@@ -4,10 +4,10 @@
 
 ## Компоненти та залежності (огляд)
 
-Використано рендерер `elk` з ортогональними стрілками (`step`) та налаштованими відступами. Невидимі зв'язки `~~~` примусово вирівнюють шари один під одним. База даних винесена в окремий підграф. Стрілки підписано повними іменами інтерфейсів з перенесенням рядків.
+Використано рендерер `elk` з ортогональними стрілками (`step`) та збільшеними відступами (`nodeSpacing: 90`, `rankSpacing: 70`). Невидимі зв'язки `~~~` примусово вирівнюють шари один під одним. База даних винесена в окремий підграф. Стрілки підписано повними іменами інтерфейсів з перенесенням рядків.
 
 ```mermaid
-%%{init: {"flowchart": {"defaultRenderer": "elk", "curve": "step", "nodeSpacing": 40, "rankSpacing": 60}}}%%
+%%{init: {"flowchart": {"defaultRenderer": "elk", "curve": "step", "nodeSpacing": 90, "rankSpacing": 70}}}%%
 flowchart TB
     %% --- Шари (Оголошення блоків) ---
     subgraph Client["Клієнт"]
@@ -28,6 +28,7 @@ flowchart TB
     end
 
     subgraph Infra["Інфраструктура"]
+        %% Оголошуємо DataAccess першим, щоб він був найдоступнішим для стрілок згори
         DataAccess["Data Access (Repository)"]
         PaymentAdapter["Payment Adapter"]
         OutboxRelay["Outbox Relay Worker"]
@@ -44,8 +45,7 @@ flowchart TB
         EmailProvider["Email / SMS Provider"]
     end
 
-    %% --- ПРИМУСОВЕ ВИРІВНЮВАННЯ ШАРІВ (Невидимі стрілки) ---
-    %% Це змусить Mermaid поставити їх строго один під одним
+    %% --- ПРИМУСОВЕ ВИРІВНЮВАННЯ ШАРІВ ---
     Client ~~~ API
     API ~~~ Services
     Services ~~~ Infra
