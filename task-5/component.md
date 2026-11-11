@@ -4,11 +4,11 @@
 
 ## Компоненти та залежності (огляд)
 
-Використано вертикальне розташування шарів (зверху вниз), щоб стрілки були прямими та не накладалися. Внутрішні блоки розташовано горизонтально (рядками). Зовнішні системи винесено в окремий блок справа. Стрілки підписано іменами provided/required-інтерфейсів.
+Використано горизонтальне розташування шарів (зліва направо), щоб полотно було ширшим і зручнішим для читання. Внутрішні блоки розташовано вертикально (колонками). Стрілки — ортогональні (строго під прямим кутом). Зовнішні системи та інфраструктура винесено в окремі блоки, щоб не накладатися на основні сервіси. Довгі підписи на стрілках перенесено на кілька рядків.
 
 ```mermaid
-%%{init: {'flowchart': {'curve': 'linear'}}}%%
-flowchart TB
+%%{init: {'flowchart': {'curve': 'step'}}}%%
+flowchart LR
     %% --- Клієнт ---
     subgraph Client["Клієнт"]
         WebClient["Web Client (SPA)"]
@@ -21,7 +21,7 @@ flowchart TB
 
     %% --- Сервіси ---
     subgraph Services["Сервіси"]
-        direction LR
+        direction TB
         AuthService["Auth Service"]
         CatalogService["Catalog Service"]
         SellerService["Seller Service"]
@@ -32,7 +32,7 @@ flowchart TB
 
     %% --- Інфраструктура ---
     subgraph Infra["Інфраструктура"]
-        direction LR
+        direction TB
         PaymentAdapter["Payment Adapter"]
         OutboxRelay["Outbox Relay Worker"]
         ExpiryScheduler["Order Expiry Scheduler"]
@@ -61,9 +61,9 @@ flowchart TB
     Gateway -->|IReviewService| ReviewService
 
     AuthService -->|IUserRepository| DataAccess
-    CatalogService -->|IProductRepository, ICategoryRepository, IStoreRepository| DataAccess
-    SellerService -->|IStoreRepository, IProductRepository| DataAccess
-    OrderService -->|IOrderRepository, IProductRepository, IOutboxRepository| DataAccess
+    CatalogService -->|IProductRepository,<br>ICategoryRepository,<br>IStoreRepository| DataAccess
+    SellerService -->|IStoreRepository,<br>IProductRepository| DataAccess
+    OrderService -->|IOrderRepository,<br>IProductRepository,<br>IOutboxRepository| DataAccess
     ReviewService -->|IReviewRepository| DataAccess
 
     OrderService -->|IOutboxRepository| OutboxRelay
