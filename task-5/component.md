@@ -4,24 +4,16 @@
 
 ## Компоненти та залежності (огляд)
 
-Використано вертикальне розташування шарів (зверху вниз), щоб стрілки були ортогональними та не накладалися. Внутрішні блоки розташовано горизонтально (рядками), щоб діаграма була ширшою. Стрілки — строго під прямим кутом (без заокруглень). Довгі назви інтерфейсів на стрілках скорочено.
+Використано рендерер `elk` з ортогональними стрілками (`step`) та налаштованими відступами, щоб діаграма була широкою, читабельною і без накладань. Внутрішні блоки розташовано горизонтально (рядками). Довгі назви інтерфейсів на стрілках скорочено.
 
 ```mermaid
-%%{init: {"flowchart": {"curve": "step"}}}%%
+%%{init: {"flowchart": {"defaultRenderer": "elk", "curve": "step", "nodeSpacing": 40, "rankSpacing": 60}}}%%
 flowchart TB
-    %% --- Клієнт ---
-    subgraph Client["Клієнт"]
-        WebClient["Web Client (SPA)"]
-    end
+    %% --- Клієнт та API ---
+    WebClient["Web Client (SPA)"] -->|HTTP/REST| Gateway["API Gateway / BFF"]
 
-    %% --- API ---
-    subgraph API["API"]
-        Gateway["API Gateway / BFF"]
-    end
-
-    %% --- Сервіси ---
+    %% --- Центральна бізнес-логіка (Сервіси) ---
     subgraph Services["Сервіси"]
-        direction LR
         AuthService["Auth Service"]
         CatalogService["Catalog Service"]
         SellerService["Seller Service"]
@@ -29,54 +21,30 @@ flowchart TB
         ReviewService["Review Service"]
     end
 
-    %% --- Воркери та адаптери (теж інфраструктура, але верхній шар) ---
-    subgraph Workers["Фонові процеси та Адаптери"]
-        direction LR
-        NotificationService["Notification Service"]
-        ExpiryScheduler["Order Expiry Scheduler"]
-        PaymentAdapter["Payment Adapter"]
-        OutboxRelay["Outbox Relay Worker"]
-    end
-
-    %% --- Зовнішні системи ---
-    subgraph External["Зовнішні системи"]
-        direction LR
-        IdentityProvider["Identity Provider (опц.)"]
-        PaymentGateway["Payment Gateway"]
-        EmailProvider["Email / SMS Provider"]
-    end
-
-    %% --- База та доступ до неї ---
-    subgraph DAL["Доступ до даних (Інфраструктура)"]
-        DataAccess["Data Access (Repository)"]
-    end
-
-    subgraph Data["Дані"]
-        Database[("PostgreSQL")]
-    end
-
-    %% ==========================================
-    %% ЗВ'ЯЗКИ (Згори донизу)
-    %% ==========================================
-
-    WebClient -->|HTTP/REST| Gateway
-
     Gateway -->|IAuth| AuthService
     Gateway -->|ICatalog| CatalogService
     Gateway -->|ISeller| SellerService
     Gateway -->|IOrder| OrderService
     Gateway -->|IReview| ReviewService
 
-    AuthService -.->|IIdentityProvider| IdentityProvider
-    PaymentAdapter -->|API| PaymentGateway
-    NotificationService -->|API| EmailProvider
+    %% --- Фонові процеси та Адаптери ---
+    subgraph Workers["Фонові процеси та Адаптери"]
+        ExpiryScheduler["Order Expiry Scheduler"]
+        PaymentAdapter["Payment Adapter"]
+        OutboxRelay["Outbox Relay Worker"]
+        NotificationService["Notification Service"]
+    end
 
     ExpiryScheduler -->|IOrderService| OrderService
     OrderService -->|IPaymentGateway| PaymentAdapter
     OrderService -->|IOutbox| OutboxRelay
     OutboxRelay -->|IEmailSender| NotificationService
 
-    %% Зв'язки до репозиторію (йдуть строго вниз)
+    %% --- Рівень Даних (DAL) ---
+    subgraph DAL["Доступ до даних"]
+        DataAccess["Data Access (Repository)"]
+    end
+
     AuthService -->|IUser| DataAccess
     CatalogService -->|IProduct, ICategory, IStore| DataAccess
     SellerService -->|IStore, IProduct| DataAccess
@@ -84,7 +52,22 @@ flowchart TB
     ReviewService -->|IReview| DataAccess
     OutboxRelay -->|IOutbox| DataAccess
 
+    %% --- База даних ---
+    subgraph Data["Дані"]
+        Database[("PostgreSQL")]
+    end
     DataAccess -->|IDbConnection| Database
+
+    %% --- Зовнішні системи ---
+    subgraph External["Зовнішні системи"]
+        IdentityProvider["Identity Provider (опц.)"]
+        PaymentGateway["Payment Gateway"]
+        EmailProvider["Email / SMS Provider"]
+    end
+
+    AuthService -.->|IIdentityProvider| IdentityProvider
+    PaymentAdapter -->|API| PaymentGateway
+    NotificationService -->|API| EmailProvider
 ```
 
 ## Примітки
