@@ -1,127 +1,110 @@
 @startuml
 skinparam componentStyle rectangle
 skinparam packageStyle rectangle
-title Component Diagram — Мультивендорний маркетплейс (Завдання 5)
+skinparam defaultTextAlignment center
+skinparam shadowing false
 
-package "Клієнтський рівень" {
+top to bottom direction
+skinparam linetype ortho
+
+skinparam ranksep 140
+skinparam nodesep 55
+skinparam ArrowFontSize 10
+skinparam packagePadding 20
+
+title Component Diagram — Мультивендорний маркетплейс (Завдання 5, Варіант 3)
+
+package "Клієнт" {
   [Web Client (SPA)] as WebClient
 }
 
-package "API-рівень" {
+package "API" {
   [API Gateway / BFF] as Gateway
 }
 
-package "Прикладні сервіси" {
-  [Auth Service] as AuthService
+skinparam componentStyle rectangle
+package "Сервіси" {
+  [Order Service] as OrderService
   [Catalog Service] as CatalogService
   [Seller Service] as SellerService
-  [Order Service] as OrderService
   [Review Service] as ReviewService
+  [Auth Service] as AuthService
   [Notification Service] as NotificationService
 }
-
-package "Інфраструктура" {
+package "Інфраструктура (Адаптери доступу)" {
+  [Order Data Access] as OrderRepo
+  [Catalog Data Access] as CatalogRepo
+  [Seller Data Access] as SellerRepo
+  [Review Data Access] as ReviewRepo
+  [Auth Data Access] as AuthRepo
   [Payment Adapter] as PaymentAdapter
-  [Outbox Relay Worker] as OutboxRelay
   [Order Expiry Scheduler] as ExpiryScheduler
-  [Data Access (Repository)] as DataAccess
+  [Outbox Relay Worker] as OutboxRelay
 }
-
-package "Рівень даних" {
-  database "Database\n(PostgreSQL)" as Database
+package "Дані" {
+  database "PostgreSQL" as Database
 }
 
 package "Зовнішні системи" {
   [Payment Gateway] as PaymentGateway
-  [Email/SMS Provider] as EmailProvider
-  [Identity Provider\n(OAuth/OIDC, опц.)] as IdentityProvider
+  [Identity Provider] as IdentityProvider
+  [Email / SMS Provider] as EmailProvider
 }
+' --- Суворе вирівнювання колонок зверху вниз ---
+OrderService -[hidden]right-> CatalogService
+CatalogService -[hidden]right-> SellerService
+SellerService -[hidden]right-> ReviewService
+ReviewService -[hidden]right-> AuthService
+AuthService -[hidden]right-> NotificationService
 
-' --- Інтерфейси ---
-interface "IAuthApi" as IAuthApi
-interface "ICatalogApi" as ICatalogApi
-interface "IOrderApi" as IOrderApi
-interface "IReviewApi" as IReviewApi
-interface "ISellerApi" as ISellerApi
+OrderRepo -[hidden]right-> CatalogRepo
+CatalogRepo -[hidden]right-> SellerRepo
+SellerRepo -[hidden]right-> ReviewRepo
+ReviewRepo -[hidden]right-> AuthRepo
+AuthRepo -[hidden]right-> PaymentAdapter
+PaymentAdapter -[hidden]right-> ExpiryScheduler
+ExpiryScheduler -[hidden]right-> OutboxRelay
 
-interface "IAuthService" as IAuthService
-interface "ICatalogService" as ICatalogService
-interface "IOrderService" as IOrderService
-interface "IReviewService" as IReviewService
-interface "ISellerService" as ISellerService
+Database -[hidden]right-> PaymentGateway
+PaymentGateway -[hidden]right-> IdentityProvider
+IdentityProvider -[hidden]right-> EmailProvider
+' --- Фіксація ярусів ---
+WebClient -[hidden]down-> Gateway
+Gateway -[hidden]down-> SellerService
+SellerService -[hidden]down-> SellerRepo
+SellerRepo -[hidden]down-> Database
+PaymentAdapter -[hidden]down-> PaymentGateway
+AuthService -[hidden]down-> IdentityProvider
+NotificationService -[hidden]down-> EmailProvider
 
-interface "IUserRepository" as IUserRepository
-interface "IProductRepository" as IProductRepository
-interface "ICategoryRepository" as ICategoryRepository
-interface "IStoreRepository" as IStoreRepository
-interface "IOrderRepository" as IOrderRepository
-interface "IReviewRepository" as IReviewRepository
-interface "IOutboxRepository" as IOutboxRepository
-interface "IPaymentGateway" as IPaymentGateway
-interface "IEmailSender" as IEmailSender
-interface "IIdentityProvider" as IIdentityProvider
-interface "IDbConnection" as IDbConnection
+' === 1. Клієнт -> API ===
+WebClient -(0- Gateway : IAuthApi, IOrderApi,\nISellerApi, ICatalogApi, IReviewApi
+' === 2. API -> Сервіси ===
+Gateway -(0- OrderService : IOrderService
+Gateway -(0- CatalogService : ICatalogService
+Gateway -(0- SellerService : ISellerService
+Gateway -(0- ReviewService : IReviewService
+Gateway -(0- AuthService : IAuthService
+' === 3. Сервіси -> Інфраструктура (строго вертикальні траси) ===
+OrderService -(0- OrderRepo : IOrderRepository,\nIProductRepository,\nIOutboxRepository
+CatalogService -(0- CatalogRepo : IProductRepository,\nICategoryRepository,\nIStoreRepository
+SellerService -(0- SellerRepo : IStoreRepository,\nIProductRepository
+ReviewService -(0- ReviewRepo : IReviewRepository
+AuthService -(0- AuthRepo : IUserRepository
 
-' --- Клієнт -> API ---
-WebClient ..> IAuthApi
-WebClient ..> ICatalogApi
-WebClient ..> IOrderApi
-WebClient ..> IReviewApi
-WebClient ..> ISellerApi
-Gateway - IAuthApi
-Gateway - ICatalogApi
-Gateway - IOrderApi
-Gateway - IReviewApi
-Gateway - ISellerApi
+OrderService -(0- PaymentAdapter : IPaymentGateway
+OrderService -0)- ExpiryScheduler : IOrderService
+OutboxRelay -(0- OrderRepo : IOutboxRepository
+NotificationService -0)- OutboxRelay : IEmailSender
+' === 4. Інфраструктура -> Дані та Зовнішні системи ===
+OrderRepo -(0- Database : IDbConnection
+CatalogRepo -(0- Database : IDbConnection
+SellerRepo -(0- Database : IDbConnection
+ReviewRepo -(0- Database : IDbConnection
+AuthRepo -(0- Database : IDbConnection
 
-' --- API -> сервіси ---
-Gateway ..> IAuthService
-Gateway ..> ICatalogService
-Gateway ..> IOrderService
-Gateway ..> IReviewService
-Gateway ..> ISellerService
-AuthService - IAuthService
-CatalogService - ICatalogService
-OrderService - IOrderService
-ReviewService - IReviewService
-SellerService - ISellerService
-
-' --- Сервіси -> Data Access ---
-AuthService ..> IUserRepository
-CatalogService ..> IProductRepository
-CatalogService ..> ICategoryRepository
-CatalogService ..> IStoreRepository
-SellerService ..> IStoreRepository
-SellerService ..> IProductRepository
-OrderService ..> IOrderRepository
-OrderService ..> IProductRepository
-OrderService ..> IOutboxRepository
-ReviewService ..> IReviewRepository
-DataAccess - IUserRepository
-DataAccess - IProductRepository
-DataAccess - ICategoryRepository
-DataAccess - IStoreRepository
-DataAccess - IOrderRepository
-DataAccess - IReviewRepository
-DataAccess - IOutboxRepository
-
-' --- Зовнішні інтеграції ---
-OrderService ..> IPaymentGateway
-PaymentAdapter - IPaymentGateway
-OutboxRelay ..> IOutboxRepository
-OutboxRelay ..> IEmailSender
-NotificationService - IEmailSender
-ExpiryScheduler ..> IOrderService
-AuthService ..> IIdentityProvider
-IdentityProvider - IIdentityProvider
-
-' --- БД ---
-DataAccess ..> IDbConnection
-Database - IDbConnection
-
-' --- Зовнішні системи ---
 PaymentAdapter ..> PaymentGateway : зовнішній API
+AuthService -(0- IdentityProvider : IIdentityProvider
 NotificationService ..> EmailProvider : зовнішній API
-AuthService ..> IdentityProvider : опційно
 
 @enduml
