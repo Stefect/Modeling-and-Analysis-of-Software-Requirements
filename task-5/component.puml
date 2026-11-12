@@ -7,104 +7,97 @@ skinparam shadowing false
 top to bottom direction
 skinparam linetype ortho
 
-skinparam ranksep 140
-skinparam nodesep 55
+skinparam ranksep 190
+skinparam nodesep 140
 skinparam ArrowFontSize 10
-skinparam packagePadding 20
-
+skinparam packagePadding 55
 title Component Diagram — Мультивендорний маркетплейс (Завдання 5, Варіант 3)
-
-package "Клієнт" {
+package "Клієнт" #E3F2FD {
   [Web Client (SPA)] as WebClient
 }
 
-package "API" {
+package "API" #E8F5E9 {
   [API Gateway / BFF] as Gateway
 }
 
-skinparam componentStyle rectangle
-package "Сервіси" {
+package "Сервіси" #FFFDE7 {
   [Order Service] as OrderService
   [Catalog Service] as CatalogService
-  [Seller Service] as SellerService
   [Review Service] as ReviewService
+  [Seller Service] as SellerService
   [Auth Service] as AuthService
   [Notification Service] as NotificationService
 }
-package "Інфраструктура (Адаптери доступу)" {
+package "Інфраструктура та Дані" #FFF3E0 {
   [Order Data Access] as OrderRepo
   [Catalog Data Access] as CatalogRepo
-  [Seller Data Access] as SellerRepo
   [Review Data Access] as ReviewRepo
+  [Seller Data Access] as SellerRepo
   [Auth Data Access] as AuthRepo
   [Payment Adapter] as PaymentAdapter
   [Order Expiry Scheduler] as ExpiryScheduler
   [Outbox Relay Worker] as OutboxRelay
-}
-package "Дані" {
+  
   database "PostgreSQL" as Database
 }
 
-package "Зовнішні системи" {
+package "Зовнішні системи" #F3E5F5 {
   [Payment Gateway] as PaymentGateway
   [Identity Provider] as IdentityProvider
   [Email / SMS Provider] as EmailProvider
 }
-' --- Суворе вирівнювання колонок зверху вниз ---
+' --- Суворе вирівнювання колонок ---
 OrderService -[hidden]right-> CatalogService
-CatalogService -[hidden]right-> SellerService
-SellerService -[hidden]right-> ReviewService
-ReviewService -[hidden]right-> AuthService
+CatalogService -[hidden]right-> ReviewService
+ReviewService -[hidden]right-> SellerService
+SellerService -[hidden]right-> AuthService
 AuthService -[hidden]right-> NotificationService
 
 OrderRepo -[hidden]right-> CatalogRepo
-CatalogRepo -[hidden]right-> SellerRepo
-SellerRepo -[hidden]right-> ReviewRepo
-ReviewRepo -[hidden]right-> AuthRepo
+CatalogRepo -[hidden]right-> ReviewRepo
+ReviewRepo -[hidden]right-> SellerRepo
+SellerRepo -[hidden]right-> AuthRepo
 AuthRepo -[hidden]right-> PaymentAdapter
 PaymentAdapter -[hidden]right-> ExpiryScheduler
 ExpiryScheduler -[hidden]right-> OutboxRelay
 
-Database -[hidden]right-> PaymentGateway
 PaymentGateway -[hidden]right-> IdentityProvider
 IdentityProvider -[hidden]right-> EmailProvider
 ' --- Фіксація ярусів ---
 WebClient -[hidden]down-> Gateway
-Gateway -[hidden]down-> SellerService
-SellerService -[hidden]down-> SellerRepo
-SellerRepo -[hidden]down-> Database
+Gateway -[hidden]down-> ReviewService
 PaymentAdapter -[hidden]down-> PaymentGateway
 AuthService -[hidden]down-> IdentityProvider
 NotificationService -[hidden]down-> EmailProvider
 
 ' === 1. Клієнт -> API ===
-WebClient -(0- Gateway : IAuthApi, IOrderApi,\nISellerApi, ICatalogApi, IReviewApi
+WebClient -(0- Gateway : \nIAuthApi, IOrderApi,\nISellerApi, ICatalogApi, IReviewApi
 ' === 2. API -> Сервіси ===
-Gateway -(0- OrderService : IOrderService
-Gateway -(0- CatalogService : ICatalogService
-Gateway -(0- SellerService : ISellerService
-Gateway -(0- ReviewService : IReviewService
-Gateway -(0- AuthService : IAuthService
-' === 3. Сервіси -> Інфраструктура (строго вертикальні траси) ===
-OrderService -(0- OrderRepo : IOrderRepository,\nIProductRepository,\nIOutboxRepository
-CatalogService -(0- CatalogRepo : IProductRepository,\nICategoryRepository,\nIStoreRepository
-SellerService -(0- SellerRepo : IStoreRepository,\nIProductRepository
-ReviewService -(0- ReviewRepo : IReviewRepository
-AuthService -(0- AuthRepo : IUserRepository
+Gateway -(0- OrderService : \nIOrderService
+Gateway -(0- CatalogService : \nICatalogService
+Gateway -(0- ReviewService : \nIReviewService
+Gateway -(0- SellerService : \nISellerService
+Gateway -(0- AuthService : \nIAuthService
+' === 3. Сервіси -> Інфраструктура ===
+OrderService -(0- OrderRepo : \nIOrderRepository,\nIProductRepository,\nIOutboxRepository
+CatalogService -(0- CatalogRepo : \nIProductRepository,\nICategoryRepository,\nIStoreRepository
+ReviewService -(0- ReviewRepo : \nIReviewRepository
+SellerService -(0- SellerRepo : \nIStoreRepository,\nIProductRepository
+AuthService -(0- AuthRepo : \nIUserRepository
 
-OrderService -(0- PaymentAdapter : IPaymentGateway
-OrderService -0)- ExpiryScheduler : IOrderService
-OutboxRelay -(0- OrderRepo : IOutboxRepository
-NotificationService -0)- OutboxRelay : IEmailSender
-' === 4. Інфраструктура -> Дані та Зовнішні системи ===
-OrderRepo -(0- Database : IDbConnection
-CatalogRepo -(0- Database : IDbConnection
-SellerRepo -(0- Database : IDbConnection
-ReviewRepo -(0- Database : IDbConnection
-AuthRepo -(0- Database : IDbConnection
+OrderService -(0- PaymentAdapter : \nIPaymentGateway
+OrderService -0)- ExpiryScheduler : \nIOrderService
+OutboxRelay -(0- OrderRepo : \nIOutboxRepository
+NotificationService -0)- OutboxRelay : \nIEmailSender
+' === 4. Доступ до БД та Зовнішні системи ===
+OrderRepo -(0- Database : \nIDbConnection
+CatalogRepo -(0- Database : \nIDbConnection
+ReviewRepo -(0- Database : \nIDbConnection
+SellerRepo -(0- Database : \nIDbConnection
+AuthRepo -(0- Database : \nIDbConnection
 
 PaymentAdapter ..> PaymentGateway : зовнішній API
-AuthService -(0- IdentityProvider : IIdentityProvider
+AuthService -(0- IdentityProvider : \nIIdentityProvider
 NotificationService ..> EmailProvider : зовнішній API
 
 @enduml
